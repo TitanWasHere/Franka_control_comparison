@@ -3,9 +3,9 @@ clear; clc; close all;
 fprintf('=== ANIMAZIONE TRAIETTORIA PBC (VISTA DOPPIA) ===\n\n');
 
 %% 1. CARICAMENTO DATI
-fprintf('Caricamento del file di risultati ''../results/FBL_quintic.mat''...\n');
+fprintf('Caricamento del file di risultati ''../results/matched/optimized/quintic/FBL_quintic_A.mat''...\n');
 try
-    load('../results/FBL_quintic.mat', 'results'); 
+    load('../results/matched/optimized/quintic/FBL_quintic_A.mat', 'results'); 
     fprintf('✓ File caricato con successo.\n');
 catch ME
     fprintf('ERRORE: Impossibile trovare il file dei risultati PBC.\n');

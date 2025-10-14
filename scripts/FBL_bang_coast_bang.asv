@@ -1,13 +1,13 @@
-%% SIMPLE TRAJECTORY USING BANG-BANG CONTROL PROFILE - FBL NUMERIC
+%% SIMPLE TRAJECTORY USING BANG-COAST-BANG CONTROL PROFILE - FBL NUMERIC
 
 clear; clc; close all;
 
-fprintf('=== TRAIETTORIA BANG-BANG ===\n\n');
+fprintf('=== TRAIETTORIA BANG-COAST-BANG ===\n\n');
 
 %% [! IMPORTANT] DEFINING CONSTANTS
 TRAJ_A=false;
-MATCHED_START = false;
-OPTIMIZED_GAINS = false;
+MATCHED_START = true;
+OPTIMIZED_GAINS = true;
 path = "";
 
 if MATCHED_START
@@ -22,18 +22,27 @@ else
     path = strcat(path, "unoptimized/");
 end
 
-path = strcat(path, "bang_bang/");
+path = strcat(path, "bang_coast_bang/");
 
 resultsPath = "../results/" + path;
 plot_dir = "../plots/" + path;
 
 if TRAJ_A
-    resultsPath = strcat(resultsPath, "FBL_bb_A.mat");
+    resultsPath = strcat(resultsPath, "FBL_bcb_A.mat");
     traj = "A";
 else
-    resultsPath = strcat(resultsPath, "FBL_bb_B.mat");
+    resultsPath = strcat(resultsPath, "FBL_bcb_B.mat");
     traj = "B";
 end
+
+%% CONFIGURAZIONE TRAIETTORIA
+% Frazione di tempo in coast (regolabile)
+COAST_FRACTION = 0.4;  % 40% del tempo in velocità costante
+
+fprintf('CONFIGURAZIONE BANG-COAST-BANG:\n');
+fprintf('  Frazione coast: %.1f%% del tempo totale\n', COAST_FRACTION*100);
+fprintf('  Frazione accelerazione: %.1f%% del tempo totale\n', (1-COAST_FRACTION)/2*100);
+fprintf('  Frazione decelerazione: %.1f%% del tempo totale\n', (1-COAST_FRACTION)/2*100);
 
 %% SETUP LIBRERIE E PARAMETRI
 addpath("../lib");
@@ -51,11 +60,12 @@ else
     controller_gains.Kd = controller_gains.Kd;
 end
 
-fprintf('Gains FBL numerici:\n');
+
+fprintf('\nGains FBL numerici:\n');
 fprintf('  Kp = diag([%.0f, %.0f, %.0f, %.0f, %.0f, %.0f, %.0f])\n', diag(controller_gains.Kp));
 fprintf('  Kd = diag([%.0f, %.0f, %.0f, %.0f, %.0f, %.0f, %.0f])\n', diag(controller_gains.Kd));
 
-%% DEFINIZIONE TRAIETTORIA BANG-BANG
+%% DEFINIZIONE TRAIETTORIA BANG-COAST-BANG
 
 if TRAJ_A
     q0 = [0, -pi/4, 0, -3*pi/4, 0, pi/2, pi/4]'; 
@@ -74,14 +84,14 @@ qf = max(q_min_safe, min(qf, q_max_safe));
 % Calcola spostamenti per ogni joint
 Delta_q = qf - q0;
 
-fprintf('\nPARAMETRI TRAIETTORIA BANG-BANG:\n');
+fprintf('\nPARAMETRI TRAIETTORIA BANG-COAST-BANG:\n');
 fprintf('  Configurazione iniziale q0: [%.3f, %.3f, %.3f, %.3f, %.3f, %.3f, %.3f] rad\n', q0);
 fprintf('  Configurazione finale qf:   [%.3f, %.3f, %.3f, %.3f, %.3f, %.3f, %.3f] rad\n', qf);
 fprintf('  Spostamenti Delta_q:        [%.3f, %.3f, %.3f, %.3f, %.3f, %.3f, %.3f] rad\n', Delta_q);
 fprintf('  Spostamenti Delta_q (gradi): [%.1f, %.1f, %.1f, %.1f, %.1f, %.1f, %.1f]°\n', rad2deg(Delta_q));
 
 %% SETUP SIMULAZIONE
-T_final = 8.0; 
+T_final = 8.0;  
 
 if MATCHED_START
     q0_actual = q0;
@@ -90,17 +100,24 @@ else
 end
 x0 = [q0_actual; zeros(7,1)];
 
+% Calcolo tempi delle fasi
+T_accel = T_final * (1 - COAST_FRACTION) / 2;
+T_coast = T_final * COAST_FRACTION;
+T_decel = T_accel;
 
-fprintf('\nPARAMETRI SIMULAZIONE:\n');
+fprintf('\nPARAMETRI TEMPORALI:\n');
 fprintf('  Tempo totale: %.1f s\n', T_final);
-fprintf('  Tempo switch (accel->decel): %.1f s\n', T_final/2);
+fprintf('  Tempo accelerazione: %.1f s (0 - %.1f s)\n', T_accel, T_accel);
+fprintf('  Tempo coast: %.1f s (%.1f - %.1f s)\n', T_coast, T_accel, T_accel + T_coast);
+fprintf('  Tempo decelerazione: %.1f s (%.1f - %.1f s)\n', T_decel, T_accel + T_coast, T_final);
 
-% Calcola parametri caratteristici della traiettoria bang-bang
-max_accelerations = 4 * Delta_q / (T_final^2);
-max_velocities = 2 * Delta_q / T_final;
+% Calcola parametri caratteristici della traiettoria bang-coast-bang
+accelerations = Delta_q ./ (T_accel * (T_accel + T_coast));
+velocities_coast = accelerations * T_accel;
 
-fprintf('  Accelerazioni massime: [%.3f, %.3f, %.3f, %.3f, %.3f, %.3f, %.3f] rad/s²\n', max_accelerations);
-fprintf('  Velocità massime (a metà): [%.3f, %.3f, %.3f, %.3f, %.3f, %.3f, %.3f] rad/s\n', max_velocities);
+fprintf('\nCARATTERISTICHE DINAMICHE:\n');
+fprintf('  Accelerazioni: [%.3f, %.3f, %.3f, %.3f, %.3f, %.3f, %.3f] rad/s²\n', accelerations);
+fprintf('  Velocità coast: [%.3f, %.3f, %.3f, %.3f, %.3f, %.3f, %.3f] rad/s\n', velocities_coast);
 
 % Opzioni integrazione numerica
 options = odeset('RelTol', 1e-4, 'AbsTol', 1e-6, 'MaxStep', 0.01, ...
@@ -110,13 +127,13 @@ options = odeset('RelTol', 1e-4, 'AbsTol', 1e-6, 'MaxStep', 0.01, ...
 uncertain_params = setup_uncertainty_levels(true_params_vec);
 uncertain_params = uncertain_params.inertia_coriolis; 
 
-%% SIMULAZIONE TRAIETTORIA BANG-BANG
-fprintf('\n=== SIMULAZIONE FBL CON TRAIETTORIA BANG-BANG ===\n');
+%% SIMULAZIONE TRAIETTORIA BANG-COAST-BANG
+fprintf('\n=== SIMULAZIONE FBL CON TRAIETTORIA BANG-COAST-BANG ===\n');
 fprintf('Integrando equazioni dinamiche...\n');
 
 tic;
-[t_sim, x_sim] = ode45(@(t, x) robot_dynamics_bang_bang(t, x, q0, qf, T_final, @FBL_numeric, ...
-                                                        controller_gains, true_params_vec, uncertain_params), ...
+[t_sim, x_sim] = ode45(@(t, x) robot_dynamics_bang_coast_bang(t, x, q0, qf, T_final, @FBL_numeric, ...
+                                                              controller_gains, true_params_vec, uncertain_params, COAST_FRACTION), ...
                        [0 T_final], x0, options);
 sim_time = toc;
 
@@ -126,7 +143,7 @@ fprintf('  Frequenza media: %.1f Hz\n', length(t_sim)/T_final);
 fprintf('  Tempo simulazione/tempo reale: %.2fx\n', sim_time/T_final);
 
 %% ANALISI RISULTATI
-fprintf('\n=== ANALISI PRESTAZIONI BANG-BANG ===\n');
+fprintf('\n=== ANALISI PRESTAZIONI BANG-COAST-BANG ===\n');
 
 % Estrai dati simulazione
 q_sim = x_sim(:, 1:7)';        % Posizioni: 7 x N_points
@@ -138,10 +155,10 @@ q_desired = zeros(7, n_points);
 qd_desired = zeros(7, n_points);
 qdd_desired = zeros(7, n_points);
 
-fprintf('Calcolo traiettoria di riferimento bang-bang...\n');
+fprintf('Calcolo traiettoria di riferimento bang-coast-bang...\n');
 for i = 1:n_points
     [q_desired(:,i), qd_desired(:,i), qdd_desired(:,i)] = ...
-        generate_bang_bang_trajectory(t_sim(i), q0, qf, T_final);
+        generate_bang_coast_bang_trajectory(t_sim(i), q0, qf, T_final, COAST_FRACTION);
 end
 
 % Calcola errori di tracking
@@ -160,14 +177,22 @@ fprintf('  Errore RMS totale: %.4f rad (%.2f°)\n', total_rms_error, rad2deg(tot
 fprintf('  Errore max per joint: [%.2f, %.2f, %.2f, %.2f, %.2f, %.2f, %.2f]° \n', ...
         rad2deg(max_pos_error'));
 
-% Verifica caratteristiche bang-bang
-switch_time_idx = find(t_sim >= T_final/2, 1);
-if ~isempty(switch_time_idx)
-    fprintf('\nCARATTERISTICHE BANG-BANG A METÀ TEMPO:\n');
-    fprintf('  Velocità simulate a t=%.1fs: [%.3f, %.3f, %.3f, %.3f, %.3f, %.3f, %.3f] rad/s\n', ...
-            t_sim(switch_time_idx), qd_sim(:, switch_time_idx));
-    fprintf('  Velocità teoriche massime:   [%.3f, %.3f, %.3f, %.3f, %.3f, %.3f, %.3f] rad/s\n', ...
-            max_velocities);
+% Verifica caratteristiche bang-coast-bang nelle diverse fasi
+accel_end_idx = find(t_sim >= T_accel, 1);
+coast_end_idx = find(t_sim >= T_accel + T_coast, 1);
+
+if ~isempty(accel_end_idx) && ~isempty(coast_end_idx)
+    fprintf('\nCARATTERISTICHE BANG-COAST-BANG:\n');
+    fprintf('  Fine accelerazione (t=%.1fs):\n', t_sim(accel_end_idx));
+    fprintf('    Velocità simulate: [%.3f, %.3f, %.3f, %.3f, %.3f, %.3f, %.3f] rad/s\n', qd_sim(:, accel_end_idx));
+    fprintf('    Velocità teoriche: [%.3f, %.3f, %.3f, %.3f, %.3f, %.3f, %.3f] rad/s\n', velocities_coast);
+    
+    % Verifica velocità costante durante coast
+    coast_start_idx = accel_end_idx;
+    coast_velocities = qd_sim(:, coast_start_idx:coast_end_idx);
+    coast_std = std(coast_velocities, 0, 2);
+    fprintf('  Durante coast:\n');
+    fprintf('    Deviazione standard velocità: [%.4f, %.4f, %.4f, %.4f, %.4f, %.4f, %.4f] rad/s\n', coast_std);
 end
 
 %% ANALISI END-EFFECTOR
@@ -220,7 +245,6 @@ fprintf('  Errore tracking - Max: %.2f mm, RMS: %.2f mm\n', max_ee_error, rms_ee
 fprintf('  Errore finale: %.2f mm\n', final_ee_error);
 
 %% SETUP DIRECTORY PLOTS
-plot_dir = '../plots/bang_bang';
 if ~exist(plot_dir, 'dir')
     mkdir(plot_dir);
 end
@@ -232,7 +256,7 @@ tau_computed = zeros(length(tau_sample_idx), 7);
 
 for i = 1:length(tau_sample_idx)
     idx = tau_sample_idx(i);
-    [q_d, qd_d, qdd_d] = generate_bang_bang_trajectory(t_sim(idx), q0, qf, T_final);
+    [q_d, qd_d, qdd_d] = generate_bang_coast_bang_trajectory(t_sim(idx), q0, qf, T_final, COAST_FRACTION);
     tau_computed(i,:) = FBL_numeric(q_sim(:,idx), qd_sim(:,idx), q_d, qd_d, qdd_d, controller_gains, uncertain_params);
 end
 
@@ -244,27 +268,28 @@ joint_names = {'Base (J1)', 'Shoulder (J2)', 'Elbow (J3)', 'Forearm (J4)', ...
                'Wrist1 (J5)', 'Wrist2 (J6)', 'Wrist3 (J7)'};
 
 for joint = 1:7
-    figure('Name', sprintf('Joint %d Bang-Bang Tracking', joint), 'Position', [100 100 800 600]);
+    figure('Name', sprintf('Joint %d Bang-Coast-Bang Tracking', joint), 'Position', [100 100 800 600]);
     plot(t_sim, rad2deg(q_desired(joint,:)), 'g--', 'LineWidth', 2.5, 'DisplayName', 'Desired');
     hold on;
     plot(t_sim, rad2deg(q_sim(joint,:)), 'b-', 'LineWidth', 2, 'DisplayName', 'Actual');
-    % Add switch line
-    xline(T_final/2, 'k:', 'LineWidth', 2, 'DisplayName', 'Bang-Bang Switch');
-    title(sprintf('Joint %d Bang-Bang Position Tracking - %s', joint, joint_names{joint}), 'FontSize', 14);
+    % Add transition lines
+    xline(T_accel, 'k:', 'LineWidth', 2, 'DisplayName', 'Accel→Coast');
+    xline(T_accel + T_coast, 'k--', 'LineWidth', 2, 'DisplayName', 'Coast→Decel');
+    title(sprintf('Joint %d Bang-Coast-Bang Position Tracking - %s', joint, joint_names{joint}), 'FontSize', 14);
     xlabel('Time [s]', 'FontSize', 12);
     ylabel('Angle [deg]', 'FontSize', 12);
     legend('show', 'FontSize', 12, 'Location', 'best');
     grid on; grid minor;
     
-    % Add error info and bang-bang parameters
+    % Add error info and bang-coast-bang parameters
     joint_error_max = max_pos_error(joint);
     joint_error_rms = rms_pos_error(joint);
-    joint_max_accel = abs(max_accelerations(joint));
-    joint_max_vel = abs(max_velocities(joint));
+    joint_accel = abs(accelerations(joint));
+    joint_coast_vel = abs(velocities_coast(joint));
     
-    annotation('textbox', [0.15, 0.75, 0.35, 0.2], 'String', ...
-               sprintf('Bang-Bang Profile:\nMax Accel: %.2f rad/s²\nMax Vel: %.2f rad/s\n\nTracking Error:\nMax: %.2f°\nRMS: %.2f°', ...
-                      joint_max_accel, joint_max_vel, rad2deg(joint_error_max), rad2deg(joint_error_rms)), ...
+    annotation('textbox', [0.15, 0.7, 0.35, 0.25], 'String', ...
+               sprintf('Bang-Coast-Bang Profile:\nAccel: %.2f rad/s²\nCoast Vel: %.2f rad/s\nCoast: %.0f%% of time\n\nTracking Error:\nMax: %.2f°\nRMS: %.2f°', ...
+                      joint_accel, joint_coast_vel, COAST_FRACTION*100, rad2deg(joint_error_max), rad2deg(joint_error_rms)), ...
                'FontSize', 10, 'BackgroundColor', 'white', 'EdgeColor', 'black');
     
     saveas(gcf, fullfile(plot_dir, sprintf('joint_%d_tracking_%s.png', joint, traj)));
@@ -272,7 +297,7 @@ for joint = 1:7
 end
 
 % 2. END-EFFECTOR TRACKING
-figure('Name', 'End-Effector Bang-Bang Tracking', 'Position', [100 100 1200 800]);
+figure('Name', 'End-Effector Bang-Coast-Bang Tracking', 'Position', [100 100 1200 800]);
 
 % 3D trajectory
 subplot(2, 2, 1);
@@ -281,16 +306,17 @@ hold on;
 plot3(ee_pos_sim(1,:), ee_pos_sim(2,:), ee_pos_sim(3,:), 'b-', 'LineWidth', 2, 'DisplayName', 'Actual');
 plot3(ee_pos_sim(1,1), ee_pos_sim(2,1), ee_pos_sim(3,1), 'go', 'MarkerSize', 8, 'MarkerFaceColor', 'g', 'DisplayName', 'Start');
 plot3(ee_pos_sim(1,end), ee_pos_sim(2,end), ee_pos_sim(3,end), 'ro', 'MarkerSize', 8, 'MarkerFaceColor', 'r', 'DisplayName', 'End');
-title('End-Effector 3D Trajectory (Bang-Bang)', 'FontSize', 14);
+title('End-Effector 3D Trajectory (Bang-Coast-Bang)', 'FontSize', 14);
 xlabel('X [m]'); ylabel('Y [m]'); zlabel('Z [m]');
 legend('show', 'Location', 'best'); grid on; axis equal;
 
-% X, Y, Z components with switch lines
+% X, Y, Z components with transition lines
 subplot(2, 2, 2);
 plot(t_sim, ee_pos_des(1,:), 'g--', 'LineWidth', 2.5, 'DisplayName', 'Desired X');
 hold on;
 plot(t_sim, ee_pos_sim(1,:), 'b-', 'LineWidth', 2, 'DisplayName', 'Actual X');
-xline(T_final/2, 'k:', 'LineWidth', 1.5, 'DisplayName', 'Switch');
+xline(T_accel, 'k:', 'LineWidth', 1.5, 'DisplayName', 'Accel→Coast');
+xline(T_accel + T_coast, 'k--', 'LineWidth', 1.5, 'DisplayName', 'Coast→Decel');
 title('End-Effector X Position');
 xlabel('Time [s]'); ylabel('X [m]'); legend('show'); grid on;
 
@@ -298,7 +324,8 @@ subplot(2, 2, 3);
 plot(t_sim, ee_pos_des(2,:), 'g--', 'LineWidth', 2.5, 'DisplayName', 'Desired Y');
 hold on;
 plot(t_sim, ee_pos_sim(2,:), 'b-', 'LineWidth', 2, 'DisplayName', 'Actual Y');
-xline(T_final/2, 'k:', 'LineWidth', 1.5, 'DisplayName', 'Switch');
+xline(T_accel, 'k:', 'LineWidth', 1.5, 'DisplayName', 'Accel→Coast');
+xline(T_accel + T_coast, 'k--', 'LineWidth', 1.5, 'DisplayName', 'Coast→Decel');
 title('End-Effector Y Position');
 xlabel('Time [s]'); ylabel('Y [m]'); legend('show'); grid on;
 
@@ -306,16 +333,17 @@ subplot(2, 2, 4);
 plot(t_sim, ee_pos_des(3,:), 'g--', 'LineWidth', 2.5, 'DisplayName', 'Desired Z');
 hold on;
 plot(t_sim, ee_pos_sim(3,:), 'b-', 'LineWidth', 2, 'DisplayName', 'Actual Z');
-xline(T_final/2, 'k:', 'LineWidth', 1.5, 'DisplayName', 'Switch');
+xline(T_accel, 'k:', 'LineWidth', 1.5, 'DisplayName', 'Accel→Coast');
+xline(T_accel + T_coast, 'k--', 'LineWidth', 1.5, 'DisplayName', 'Coast→Decel');
 title('End-Effector Z Position');
 xlabel('Time [s]'); ylabel('Z [m]'); legend('show'); grid on;
 
-sgtitle(sprintf('End-Effector Bang-Bang Tracking (Max Error: %.2f mm, RMS: %.2f mm)', max_ee_error, rms_ee_error), 'FontSize', 16);
+sgtitle(sprintf('End-Effector Bang-Coast-Bang Tracking (Max Error: %.2f mm, RMS: %.2f mm)', max_ee_error, rms_ee_error), 'FontSize', 16);
 saveas(gcf, fullfile(plot_dir, sprintf('end_effector_tracking_%s.png', traj)));
 close(gcf);
 
-% 3. VELOCITY TRACKING (BANG-BANG)
-figure('Name', 'Bang-Bang Velocity Tracking', 'Position', [100 100 1400 1000]);
+% 3. VELOCITY TRACKING (BANG-COAST-BANG)
+figure('Name', 'Bang-Coast-Bang Velocity Tracking', 'Position', [100 100 1400 1000]);
 
 for joint = 1:7
     subplot(3, 3, joint);
@@ -323,8 +351,9 @@ for joint = 1:7
     hold on;
     plot(t_sim, rad2deg(qd_sim(joint,:)), 'b-', 'LineWidth', 2, 'DisplayName', 'Actual');
     
-    % Add bang-bang switch line
-    xline(T_final/2, 'r:', 'LineWidth', 2, 'DisplayName', 'Bang-Bang Switch');
+    % Add bang-coast-bang phase lines
+    xline(T_accel, 'r:', 'LineWidth', 2, 'DisplayName', 'Accel→Coast');
+    xline(T_accel + T_coast, 'r--', 'LineWidth', 2, 'DisplayName', 'Coast→Decel');
     
     title(sprintf('Joint %d Velocity - %s', joint, joint_names{joint}), 'FontSize', 12);
     xlabel('Time [s]', 'FontSize', 10);
@@ -349,21 +378,22 @@ total_vel_error_norm = sqrt(sum((qd_desired - qd_sim).^2, 1));
 max_total_vel_error = max(total_vel_error_norm);
 rms_total_vel_error = sqrt(mean(total_vel_error_norm.^2));
 
-sgtitle(sprintf('Bang-Bang Velocity Tracking (Max Total Error: %.2f°/s, RMS Total Error: %.2f°/s)', ...
+sgtitle(sprintf('Bang-Coast-Bang Velocity Tracking (Max Total Error: %.2f°/s, RMS Total Error: %.2f°/s)', ...
         rad2deg(max_total_vel_error), rad2deg(rms_total_vel_error)), 'FontSize', 16);
 saveas(gcf, fullfile(plot_dir, sprintf('velocity_tracking_%s.png', traj)));
 close(gcf);
 
 % 4. POSITION AND VELOCITY ERRORS
-figure('Name', 'Bang-Bang Position and Velocity Errors', 'Position', [100 100 1200 600]);
+figure('Name', 'Bang-Coast-Bang Position and Velocity Errors', 'Position', [100 100 1200 600]);
 
 % Total position error
 subplot(1, 2, 1);
 error_norm = sqrt(sum(e_pos.^2, 1));
 plot(t_sim, error_norm*1000, 'r-', 'LineWidth', 2.5);
 hold on;
-xline(T_final/2, 'k:', 'LineWidth', 2, 'DisplayName', 'Bang-Bang Switch');
-title(sprintf('Total Position Error (Bang-Bang)\nMax: %.2f mrad, RMS: %.2f mrad', ...
+xline(T_accel, 'k:', 'LineWidth', 2, 'DisplayName', 'Accel→Coast');
+xline(T_accel + T_coast, 'k--', 'LineWidth', 2, 'DisplayName', 'Coast→Decel');
+title(sprintf('Total Position Error (Bang-Coast-Bang)\nMax: %.2f mrad, RMS: %.2f mrad', ...
               max(error_norm)*1000, sqrt(mean(error_norm.^2))*1000), 'FontSize', 14);
 xlabel('Time [s]', 'FontSize', 12);
 ylabel('Position Error ||e|| [mrad]', 'FontSize', 12);
@@ -374,25 +404,27 @@ subplot(1, 2, 2);
 error_vel_norm = sqrt(sum(e_vel.^2, 1));
 plot(t_sim, error_vel_norm*1000, 'b-', 'LineWidth', 2.5);
 hold on;
-xline(T_final/2, 'k:', 'LineWidth', 2, 'DisplayName', 'Bang-Bang Switch');
-title(sprintf('Total Velocity Error (Bang-Bang)\nMax: %.2f mrad/s, RMS: %.2f mrad/s', ...
+xline(T_accel, 'k:', 'LineWidth', 2, 'DisplayName', 'Accel→Coast');
+xline(T_accel + T_coast, 'k--', 'LineWidth', 2, 'DisplayName', 'Coast→Decel');
+title(sprintf('Total Velocity Error (Bang-Coast-Bang)\nMax: %.2f mrad/s, RMS: %.2f mrad/s', ...
               max(error_vel_norm)*1000, sqrt(mean(error_vel_norm.^2))*1000), 'FontSize', 14);
 xlabel('Time [s]', 'FontSize', 12);
 ylabel('Velocity Error ||ė|| [mrad/s]', 'FontSize', 12);
 legend('show'); grid on; grid minor;
 
-sgtitle('Bang-Bang Position and Velocity Tracking Errors', 'FontSize', 16);
+sgtitle('Bang-Coast-Bang Position and Velocity Tracking Errors', 'FontSize', 16);
 saveas(gcf, fullfile(plot_dir, sprintf('position_velocity_errors_%s.png', traj)));
 close(gcf);
 
 % 5. CONTROL TORQUES
-figure('Name', 'Bang-Bang Control Torques', 'Position', [100 100 1400 800]);
+figure('Name', 'Bang-Coast-Bang Control Torques', 'Position', [100 100 1400 800]);
 
 for joint = 1:7
     subplot(3, 3, joint);
     plot(t_sim(tau_sample_idx), tau_computed(:,joint), 'r-', 'LineWidth', 2);
     hold on;
-    xline(T_final/2, 'k:', 'LineWidth', 1.5, 'DisplayName', 'Switch');
+    xline(T_accel, 'k:', 'LineWidth', 1.5, 'DisplayName', 'Accel→Coast');
+    xline(T_accel + T_coast, 'k--', 'LineWidth', 1.5, 'DisplayName', 'Coast→Decel');
     title(sprintf('Joint %d Torque - %s', joint, joint_names{joint}), 'FontSize', 12);
     xlabel('Time [s]', 'FontSize', 10);
     ylabel('Torque [Nm]', 'FontSize', 10);
@@ -412,8 +444,9 @@ plot(t_sim(tau_sample_idx), tau_computed(:,1), 'r-', 'LineWidth', 2, 'DisplayNam
 hold on;
 plot(t_sim(tau_sample_idx), tau_computed(:,4), 'b-', 'LineWidth', 2, 'DisplayName', 'Forearm (J4)');
 plot(t_sim(tau_sample_idx), tau_computed(:,6), 'g-', 'LineWidth', 2, 'DisplayName', 'Wrist2 (J6)');
-xline(T_final/2, 'k:', 'LineWidth', 1.5, 'DisplayName', 'Switch');
-title('Main Joint Torques (Bang-Bang)', 'FontSize', 12);
+xline(T_accel, 'k:', 'LineWidth', 1.5, 'DisplayName', 'Accel→Coast');
+xline(T_accel + T_coast, 'k--', 'LineWidth', 1.5, 'DisplayName', 'Coast→Decel');
+title('Main Joint Torques (Bang-Coast-Bang)', 'FontSize', 12);
 xlabel('Time [s]', 'FontSize', 10);
 ylabel('Torque [Nm]', 'FontSize', 10);
 legend('show', 'FontSize', 9); grid on;
@@ -423,18 +456,19 @@ subplot(3, 3, 9);
 torque_norm = sqrt(sum(tau_computed.^2, 2));
 plot(t_sim(tau_sample_idx), torque_norm, 'k-', 'LineWidth', 2.5);
 hold on;
-xline(T_final/2, 'k:', 'LineWidth', 1.5, 'DisplayName', 'Switch');
-title(sprintf('Total Torque Norm (Bang-Bang)\nMax: %.1f Nm, RMS: %.1f Nm', ...
+xline(T_accel, 'k:', 'LineWidth', 1.5, 'DisplayName', 'Accel→Coast');
+xline(T_accel + T_coast, 'k--', 'LineWidth', 1.5, 'DisplayName', 'Coast→Decel');
+title(sprintf('Total Torque Norm (Bang-Coast-Bang)\nMax: %.1f Nm, RMS: %.1f Nm', ...
               max(torque_norm), sqrt(mean(torque_norm.^2))), 'FontSize', 12);
 xlabel('Time [s]', 'FontSize', 10);
 ylabel('||τ|| [Nm]', 'FontSize', 10);
 legend('show'); grid on; grid minor;
 
-sgtitle('Bang-Bang Control Torques for All Joints', 'FontSize', 16);
+sgtitle('Bang-Coast-Bang Control Torques for All Joints', 'FontSize', 16);
 saveas(gcf, fullfile(plot_dir, sprintf('control_torques_%s.png', traj)));
 close(gcf);
 
-fprintf('✓ Grafici Bang-Bang salvati in: %s\n', plot_dir);
+fprintf('✓ Grafici Bang-Coast-Bang salvati in: %s\n', plot_dir);
 fprintf('  - 7 grafici joint tracking: joint_1_tracking.png → joint_7_tracking.png\n');
 fprintf('  - End-effector tracking: end_effector_tracking.png\n');
 fprintf('  - Errori posizione/velocità: position_velocity_errors.png\n');
@@ -443,8 +477,8 @@ fprintf('  - Coppie di controllo: control_torques.png\n');
 %% SALVATAGGIO RISULTATI
 
 results = struct();
-results.controller = 'FBL_numeric_bang_bang';
-results.trajectory_type = 'bang_bang';
+results.controller = 'FBL_numeric_bang_coast_bang';
+results.trajectory_type = 'bang_coast_bang';
 results.simulation_time = sim_time;
 
 % Parametri traiettoria
@@ -452,9 +486,12 @@ results.trajectory_params = struct();
 results.trajectory_params.q0 = q0;
 results.trajectory_params.qf = qf;
 results.trajectory_params.T_final = T_final;
-results.trajectory_params.switch_time = T_final/2;
-results.trajectory_params.max_accelerations = max_accelerations;
-results.trajectory_params.max_velocities = max_velocities;
+results.trajectory_params.coast_fraction = COAST_FRACTION;
+results.trajectory_params.T_accel = T_accel;
+results.trajectory_params.T_coast = T_coast;
+results.trajectory_params.T_decel = T_decel;
+results.trajectory_params.accelerations = accelerations;
+results.trajectory_params.coast_velocities = velocities_coast;
 
 % Performance joint-space
 results.performance_joint = struct();
@@ -498,12 +535,13 @@ save(resultsPath, 'results', '-v7.3');
 fprintf('\n✓ Risultati salvati: %s\n', resultsPath);
 
 %% SUMMARY FINALE
-fprintf(['\n' repmat('=', 1, 60) '\n']);
-fprintf('SUMMARY TRAIETTORIA BANG-BANG\n');
-fprintf([repmat('=', 1, 60) '\n']);
+fprintf(['\n' repmat('=', 1, 70) '\n']);
+fprintf('SUMMARY TRAIETTORIA BANG-COAST-BANG\n');
+fprintf([repmat('=', 1, 70) '\n']);
 fprintf('Traiettoria:\n');
-fprintf('  Tipo: Bang-Bang (rest-to-rest)\n');
-fprintf('  Tempo: %.1f s, Switch: %.1f s\n', T_final, T_final/2);
+fprintf('  Tipo: Bang-Coast-Bang (rest-to-rest)\n');
+fprintf('  Tempo: %.1f s (Accel: %.1fs, Coast: %.1fs, Decel: %.1fs)\n', T_final, T_accel, T_coast, T_decel);
+fprintf('  Coast fraction: %.0f%% del tempo totale\n', COAST_FRACTION*100);
 fprintf('  Spostamento max: %.2f° (Joint %d)\n', max(rad2deg(abs(Delta_q))), find(abs(Delta_q)==max(abs(Delta_q)), 1));
 fprintf('\nPerformance Joint:\n');
 fprintf('  Errore max: %.2f° (%.3f rad)\n', rad2deg(total_max_error), total_max_error);
@@ -512,13 +550,16 @@ fprintf('\nPerformance End-Effector:\n');
 fprintf('  Errore tracking max: %.2f mm\n', max_ee_error);
 fprintf('  Errore tracking RMS: %.2f mm\n', rms_ee_error);
 fprintf('  Errore finale: %.2f mm\n', final_ee_error);
-fprintf('\nCaratteristiche Bang-Bang:\n');
-fprintf('  Accelerazione max: %.3f rad/s² (Joint %d)\n', max(abs(max_accelerations)), find(abs(max_accelerations)==max(abs(max_accelerations)), 1));
-fprintf('  Velocità max: %.3f rad/s (Joint %d)\n', max(abs(max_velocities)), find(abs(max_velocities)==max(abs(max_velocities)), 1));
+fprintf('\nCaratteristiche Bang-Coast-Bang:\n');
+fprintf('  Accelerazione max: %.3f rad/s² (Joint %d)\n', max(abs(accelerations)), find(abs(accelerations)==max(abs(accelerations)), 1));
+fprintf('  Velocità coast max: %.3f rad/s (Joint %d)\n', max(abs(velocities_coast)), find(abs(velocities_coast)==max(abs(velocities_coast)), 1));
+if exist('coast_std', 'var')
+    fprintf('  Deviazione std velocità coast: %.4f rad/s (max)\n', max(coast_std));
+end
 fprintf('\nComputazione:\n');
 fprintf('  Tempo simulazione: %.3f s (%.2fx realtime)\n', sim_time, sim_time/T_final);
 fprintf('  Frequenza simulazione: %.1f Hz\n', length(t_sim)/T_final);
 fprintf('\nFile salvato: %s\n', resultsPath);
-fprintf([repmat('=', 1, 60) '\n']);
+fprintf([repmat('=', 1, 70) '\n']);
 
-fprintf('\n🎯 Simulazione traiettoria bang-bang completata con successo!\n');
+fprintf('\n🎯 Simulazione traiettoria bang-coast-bang completata con successo!\n');

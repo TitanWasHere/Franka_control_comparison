@@ -7,7 +7,7 @@ fprintf('[Algorithm] Newton-Euler\n');
 
 %% [! IMPORTANT] DEFINING CONSTANTS
 TRAJ_A=true;
-METCHED_START = true;
+MATCHED_START = true;
 OPTIMIZED_GAINS = true;
 path = "";
 
@@ -75,7 +75,7 @@ qf = max(q_min_safe, min(qf, q_max_safe));
 %% SETUP SIMULATION
 T_final = 8.0;
 
-if METCHED_START
+if MATCHED_START
     q0_actual = q0;
 else
     q0_actual = q0 + deg2rad([5,-10,0,8,0,0,0]');

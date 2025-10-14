@@ -3,15 +3,10 @@
 clear; clc; close all;
 
 fprintf('=== TRAIETTORIA BANG-COAST-BANG ===\n\n');
-fprintf('Questa versione usa un profilo di accelerazione bang-coast-bang:\n');
-fprintf('- Prima fase: accelerazione costante (bang-up)\n');
-fprintf('- Seconda fase: velocità costante (coast)\n');
-fprintf('- Terza fase: decelerazione costante (bang-down)\n');
-fprintf('- Rest-to-rest: velocità zero agli estremi\n\n');
 
 %% [! IMPORTANT] DEFINING CONSTANTS
 TRAJ_A=true;
-METCHED_START = true;
+MATCHED_START = true;
 OPTIMIZED_GAINS = true;
 path = "";
 
@@ -27,16 +22,16 @@ else
     path = strcat(path, "unoptimized/");
 end
 
-path = strcat(path, "quintic/");
+path = strcat(path, "bang_coast_bang/");
 
 resultsPath = "../results/" + path;
 plot_dir = "../plots/" + path;
 
 if TRAJ_A
-    resultsPath = strcat(resultsPath, "FBL_quintic_A.mat");
+    resultsPath = strcat(resultsPath, "FBL_bcb_A.mat");
     traj = "A";
 else
-    resultsPath = strcat(resultsPath, "FBL_quintic_B.mat");
+    resultsPath = strcat(resultsPath, "FBL_bcb_B.mat");
     traj = "B";
 end
 
@@ -50,9 +45,9 @@ fprintf('  Frazione accelerazione: %.1f%% del tempo totale\n', (1-COAST_FRACTION
 fprintf('  Frazione decelerazione: %.1f%% del tempo totale\n', (1-COAST_FRACTION)/2*100);
 
 %% SETUP LIBRERIE E PARAMETRI
-addpath("../../lib");
+addpath("../lib");
 addpath(".");
-run("../../lib/setup_numerical_parameters.m");
+run("../lib/setup_numerical_parameters.m");
 
 controller_gains = setup_controller_gains();
 
@@ -297,7 +292,7 @@ for joint = 1:7
                       joint_accel, joint_coast_vel, COAST_FRACTION*100, rad2deg(joint_error_max), rad2deg(joint_error_rms)), ...
                'FontSize', 10, 'BackgroundColor', 'white', 'EdgeColor', 'black');
     
-    saveas(gcf, fullfile(plot_dir, sprintf('joint_%d_tracking.png_%s', joint, traj)));
+    saveas(gcf, fullfile(plot_dir, sprintf('joint_%d_tracking_%s.png', joint, traj)));
     close(gcf);
 end
 
