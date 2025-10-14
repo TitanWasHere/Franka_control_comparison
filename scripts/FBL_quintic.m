@@ -5,23 +5,58 @@ clear; clc; close all;
 fprintf('=== QUINTIC TRAJECTORY ===\n\n');
 fprintf('[Algorithm] Newton-Euler\n');
 
+%% [! IMPORTANT] DEFINING CONSTANTS
+TRAJ_A=true;
+METCHED_START = true;
+OPTIMIZED_GAINS = true;
+path = "";
+
+if MATCHED_START
+    path = strcat(path, "matched/");
+else
+    path = strcat(path, "mismatched/");
+end
+
+if OPTIMIZED_GAINS
+    path = strcat(path, "optimized/");
+else
+    path = strcat(path, "unoptimized/");
+end
+
+path = strcat(path, "quintic/");
+
+resultsPath = "../results/" + path;
+plot_dir = "../plots/" + path;
+
+if TRAJ_A
+    resultsPath = strcat(resultsPath, "FBL_quintic_A.mat");
+    traj = "A";
+else
+    resultsPath = strcat(resultsPath, "FBL_quintic_B.mat");
+    traj = "B";
+end
+
+
+
 %% Load numerical parameters
 addpath("../lib");
 run("../lib/setup_numerical_parameters.m");
 
 controller_gains = setup_controller_gains();
 
-filename = '../results/FBL_quintic.mat';
-controller_gains.Kp = controller_gains.Kp * 2;
-controller_gains.Kd = controller_gains.Kd + 10;
+if OPTIMIZED_GAINS
+    controller_gains.Kp = controller_gains.Kp * 2;
+    controller_gains.Kd = controller_gains.Kd + 10;
+else
+    controller_gains.Kp = controller_gains.Kp;
+    controller_gains.Kd = controller_gains.Kd;
+end
 
 fprintf('Gains FBL numerici:\n');
 fprintf('  Kp = diag([%.0f, %.0f, %.0f, %.0f, %.0f, %.0f, %.0f])\n', diag(controller_gains.Kp));
 fprintf('  Kd = diag([%.0f, %.0f, %.0f, %.0f, %.0f, %.0f, %.0f])\n', diag(controller_gains.Kd));
 
 %% TRAJECTORY DEFINITION
-
-TRAJ_A=true;
 
 if TRAJ_A
     q0 = [0, -pi/4, 0, -3*pi/4, 0, pi/2, pi/4]'; 
@@ -43,7 +78,6 @@ qf = max(q_min_safe, min(qf, q_max_safe));
 %% SETUP SIMULATION
 T_final = 8.0;
 
-METCHED_START = true;
 if METCHED_START
     q0_actual = q0;
 else
@@ -102,7 +136,7 @@ fprintf('  Errore massimo assoluto: %.4f rad (%.2f°)\n', total_max_error, rad2d
 fprintf('  Errore RMS globale: %.4f rad (%.2f°)\n', total_rms_error, rad2deg(total_rms_error));
 
 %% SETUP DIRECTORY PLOTS
-plot_dir = '../plots/quintic';
+
 if ~exist(plot_dir, 'dir')
     mkdir(plot_dir);
 end
@@ -181,8 +215,8 @@ for joint = 1:7
                sprintf('Max Error: %.2f°\nRMS Error: %.2f°', ...
                       rad2deg(joint_error_max), rad2deg(joint_error_rms)), ...
                'FontSize', 10, 'BackgroundColor', 'white', 'EdgeColor', 'black');
-    
-    saveas(gcf, fullfile(plot_dir, sprintf('joint_%d_tracking.png', joint)));
+
+    saveas(gcf, fullfile(plot_dir, sprintf('joint_%d_tracking_%s.png', joint, traj)));
     close(gcf);
 end
 
@@ -223,7 +257,7 @@ title('End-Effector Z Position');
 xlabel('Time [s]'); ylabel('Z [m]'); legend('show'); grid on;
 
 sgtitle(sprintf('End-Effector Tracking (Max Error: %.2f mm, RMS: %.2f mm)', max_ee_error, rms_ee_error), 'FontSize', 16);
-saveas(gcf, fullfile(plot_dir, 'end_effector_tracking.png'));
+saveas(gcf, fullfile(plot_dir, sprintf('end_effector_tracking_%s.png', traj)));
 close(gcf);
 
 % 3. VELOCITY TRACKING
@@ -260,7 +294,7 @@ rms_total_vel_error = sqrt(mean(total_vel_error_norm.^2));
 
 sgtitle(sprintf('Joint Velocity Tracking (Max Total Error: %.2f°/s, RMS Total Error: %.2f°/s)', ...
         rad2deg(max_total_vel_error), rad2deg(rms_total_vel_error)), 'FontSize', 16);
-saveas(gcf, fullfile(plot_dir, 'velocity_tracking.png'));
+saveas(gcf, fullfile(plot_dir, sprintf('velocity_tracking_%s.png', traj)));
 close(gcf);
 
 % 4. POSITION AND VELOCITY ERRORS
@@ -287,7 +321,7 @@ ylabel('Velocity Error ||ė|| [mrad/s]', 'FontSize', 12);
 grid on; grid minor;
 
 sgtitle('Position and Velocity Tracking Errors', 'FontSize', 16);
-saveas(gcf, fullfile(plot_dir, 'position_velocity_errors.png'));
+saveas(gcf, fullfile(plot_dir, sprintf('position_velocity_errors_%s.png', traj)));
 close(gcf);
 
 % 5. CONTROL TORQUES
@@ -331,10 +365,10 @@ ylabel('||τ|| [Nm]', 'FontSize', 10);
 grid on; grid minor;
 
 sgtitle('Control Torques for All Joints', 'FontSize', 16);
-saveas(gcf, fullfile(plot_dir, 'control_torques.png'));
+saveas(gcf, fullfile(plot_dir, sprintf('control_torques_%s.png', traj)));
 close(gcf);
 
-fprintf('✓ Grafici salvati in: %s\n', plot_dir);
+fprintf('✓ Grafici salvati in: %s\n', strcat(plot_dir, sprintf("_%s", traj)));
 fprintf('  - 7 grafici joint tracking: joint_1_tracking.png → joint_7_tracking.png\n');
 fprintf('  - End-effector tracking: end_effector_tracking.png\n');
 fprintf('  - Errori posizione/velocità: position_velocity_errors.png\n');
@@ -352,14 +386,14 @@ results.desired = struct('q', q_desired, 'qd', qd_desired);
 results.errors = struct('pos', e_pos, 'vel', e_vel);
 results.timestamp = datetime('now');
 
-save(filename, 'results', '-v7.3');
+save(resultsPath, 'results', '-v7.3');
 
-fprintf('\n📁 Risultati salvati: %s\n', filename);
+fprintf('\n📁 Risultati salvati: %s\n', resultsPath);
 fprintf('🎉 Simulazione completata!\n');
 
 % Comando per calcolare l'errore finale end-effector da file .mat
 try
-    load(filename, 'results');
+    load(resultsPath, 'results');
     if isfield(results, 'ee_metrics') && isfield(results.ee_metrics, 'final_error_total')
         fprintf('\n=== ERRORE FINALE END-EFFECTOR (da file) ===\n');
         fprintf('Errore finale totale: %.2f mm\n', results.ee_metrics.final_error_total);
