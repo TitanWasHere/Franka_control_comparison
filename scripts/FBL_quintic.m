@@ -66,13 +66,10 @@ else
     qf = q0 + [0.5, -0.5, pi/2, -pi/2, 0.0,pi, 0.5]';
 end
 
-
-
 limits = setup_robot_limits();
 q_max_safe = limits.q_max - limits.safety_margin;
 q_min_safe = limits.q_min + limits.safety_margin;
 qf = max(q_min_safe, min(qf, q_max_safe));
-
 
 
 %% SETUP SIMULATION

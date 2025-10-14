@@ -9,6 +9,37 @@ fprintf('- Seconda metà: decelerazione costante massima\n');
 fprintf('- Transizione a metà del tempo totale\n');
 fprintf('- Rest-to-rest: velocità zero agli estremi\n\n');
 
+%% [! IMPORTANT] DEFINING CONSTANTS
+TRAJ_A=true;
+METCHED_START = true;
+OPTIMIZED_GAINS = true;
+path = "";
+
+if MATCHED_START
+    path = strcat(path, "matched/");
+else
+    path = strcat(path, "mismatched/");
+end
+
+if OPTIMIZED_GAINS
+    path = strcat(path, "optimized/");
+else
+    path = strcat(path, "unoptimized/");
+end
+
+path = strcat(path, "quintic/");
+
+resultsPath = "../results/" + path;
+plot_dir = "../plots/" + path;
+
+if TRAJ_A
+    resultsPath = strcat(resultsPath, "FBL_quintic_A.mat");
+    traj = "A";
+else
+    resultsPath = strcat(resultsPath, "FBL_quintic_B.mat");
+    traj = "B";
+end
+
 %% SETUP LIBRERIE E PARAMETRI
 addpath("../../lib");
 addpath(".");
@@ -17,15 +48,19 @@ run("../../lib/setup_numerical_parameters.m");
 controller_gains = setup_controller_gains();
 
 % Configurazione controller gains
-controller_gains.Kp = controller_gains.Kp * 2;
-controller_gains.Kd = controller_gains.Kd + 10;
+if OPTIMIZED_GAINS
+    controller_gains.Kp = controller_gains.Kp * 2;
+    controller_gains.Kd = controller_gains.Kd + 10;
+else
+    controller_gains.Kp = controller_gains.Kp;
+    controller_gains.Kd = controller_gains.Kd;
+end
 
 fprintf('Gains FBL numerici:\n');
 fprintf('  Kp = diag([%.0f, %.0f, %.0f, %.0f, %.0f, %.0f, %.0f])\n', diag(controller_gains.Kp));
 fprintf('  Kd = diag([%.0f, %.0f, %.0f, %.0f, %.0f, %.0f, %.0f])\n', diag(controller_gains.Kd));
 
 %% DEFINIZIONE TRAIETTORIA BANG-BANG
-TRAJ_A=true;
 
 if TRAJ_A
     q0 = [0, -pi/4, 0, -3*pi/4, 0, pi/2, pi/4]'; 
@@ -53,8 +88,7 @@ fprintf('  Spostamenti Delta_q (gradi): [%.1f, %.1f, %.1f, %.1f, %.1f, %.1f, %.1
 %% SETUP SIMULAZIONE
 T_final = 8.0; 
 
-METCHED_START = true;
-if METCHED_START
+if MATCHED_START
     q0_actual = q0;
 else
     q0_actual = q0 + deg2rad([5,-10,0,8,0,0,0]');
@@ -238,7 +272,7 @@ for joint = 1:7
                       joint_max_accel, joint_max_vel, rad2deg(joint_error_max), rad2deg(joint_error_rms)), ...
                'FontSize', 10, 'BackgroundColor', 'white', 'EdgeColor', 'black');
     
-    saveas(gcf, fullfile(plot_dir, sprintf('joint_%d_tracking.png', joint)));
+    saveas(gcf, fullfile(plot_dir, sprintf('joint_%d_tracking.png_%s', joint, traj)));
     close(gcf);
 end
 
@@ -282,7 +316,7 @@ title('End-Effector Z Position');
 xlabel('Time [s]'); ylabel('Z [m]'); legend('show'); grid on;
 
 sgtitle(sprintf('End-Effector Bang-Bang Tracking (Max Error: %.2f mm, RMS: %.2f mm)', max_ee_error, rms_ee_error), 'FontSize', 16);
-saveas(gcf, fullfile(plot_dir, 'end_effector_tracking.png'));
+saveas(gcf, fullfile(plot_dir, sprintf('end_effector_tracking_%s.png', traj)));
 close(gcf);
 
 % 3. VELOCITY TRACKING (BANG-BANG)
@@ -322,7 +356,7 @@ rms_total_vel_error = sqrt(mean(total_vel_error_norm.^2));
 
 sgtitle(sprintf('Bang-Bang Velocity Tracking (Max Total Error: %.2f°/s, RMS Total Error: %.2f°/s)', ...
         rad2deg(max_total_vel_error), rad2deg(rms_total_vel_error)), 'FontSize', 16);
-saveas(gcf, fullfile(plot_dir, 'velocity_tracking.png'));
+saveas(gcf, fullfile(plot_dir, sprintf('velocity_tracking_%s.png', traj)));
 close(gcf);
 
 % 4. POSITION AND VELOCITY ERRORS
@@ -353,7 +387,7 @@ ylabel('Velocity Error ||ė|| [mrad/s]', 'FontSize', 12);
 legend('show'); grid on; grid minor;
 
 sgtitle('Bang-Bang Position and Velocity Tracking Errors', 'FontSize', 16);
-saveas(gcf, fullfile(plot_dir, 'position_velocity_errors.png'));
+saveas(gcf, fullfile(plot_dir, sprintf('position_velocity_errors_%s.png', traj)));
 close(gcf);
 
 % 5. CONTROL TORQUES
@@ -402,7 +436,7 @@ ylabel('||τ|| [Nm]', 'FontSize', 10);
 legend('show'); grid on; grid minor;
 
 sgtitle('Bang-Bang Control Torques for All Joints', 'FontSize', 16);
-saveas(gcf, fullfile(plot_dir, 'control_torques.png'));
+saveas(gcf, fullfile(plot_dir, sprintf('control_torques_%s.png', traj)));
 close(gcf);
 
 fprintf('✓ Grafici Bang-Bang salvati in: %s\n', plot_dir);
@@ -412,7 +446,6 @@ fprintf('  - Errori posizione/velocità: position_velocity_errors.png\n');
 fprintf('  - Coppie di controllo: control_torques.png\n');
 
 %% SALVATAGGIO RISULTATI
-filename = '../results/FBL_bang_bang_results.mat';
 
 results = struct();
 results.controller = 'FBL_numeric_bang_bang';
@@ -465,9 +498,9 @@ results.errors.ee_mm = ee_error;
 results.controller_gains = controller_gains;
 results.timestamp = datetime('now');
 
-save(filename, 'results', '-v7.3');
+save(resultsPath, 'results', '-v7.3');
 
-fprintf('\n✓ Risultati salvati: %s\n', filename);
+fprintf('\n✓ Risultati salvati: %s\n', resultsPath);
 
 %% SUMMARY FINALE
 fprintf(['\n' repmat('=', 1, 60) '\n']);
@@ -490,7 +523,7 @@ fprintf('  Velocità max: %.3f rad/s (Joint %d)\n', max(abs(max_velocities)), fi
 fprintf('\nComputazione:\n');
 fprintf('  Tempo simulazione: %.3f s (%.2fx realtime)\n', sim_time, sim_time/T_final);
 fprintf('  Frequenza simulazione: %.1f Hz\n', length(t_sim)/T_final);
-fprintf('\nFile salvato: %s\n', filename);
+fprintf('\nFile salvato: %s\n', resultsPath);
 fprintf([repmat('=', 1, 60) '\n']);
 
 fprintf('\n🎯 Simulazione traiettoria bang-bang completata con successo!\n');
