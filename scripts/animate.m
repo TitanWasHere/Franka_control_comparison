@@ -2,10 +2,62 @@ clear; clc; close all;
 
 fprintf('=== ANIMAZIONE TRAIETTORIA PBC (VISTA DOPPIA) ===\n\n');
 
+CONTROLLER = "FBL";
+CHECK_OPTIMIZATION = false;
+TRAJ = 'A';
+MATCHED_START = true;
+OPTIMIZED_GAINS = true;
+PROFILE = "quintic"; % "quintic" , "bang_bang", "bang_coast_bang"
+
+path = "../results/";
+
+if CHECK_OPTIMIZATION
+    path = strcat(path, strcat(CONTROLLER, "_quintic_results.mat"));
+    % path = strcat(path, "FBL_quintic_results_half.mat");
+    % path = strcat(path, "FBL_quintic_results_double.mat");
+    % path = strcat(path, "FBL_quintic_double_more.mat");
+    % path = strcat(path, "FBL_quintic_double_half.mat");
+    % path = strcat(path, "FBL_quintic_double_double.mat");
+else
+    if MATCHED_START
+        path = strcat(path, "matched/");
+    else
+        path = strcat(path, "unmatched/");
+    end
+
+    if OPTIMIZED_GAINS
+        path = strcat(path, "optimized/");
+    else
+        path = strcat(path, "unoptimized/");
+    end
+
+    if PROFILE == "quintic"
+        if TRAJ == 'A'
+            path = strcat(path, strcat(CONTROLLER, "_quintic_A.mat"));
+        else
+            path = strcat(path, strcat(CONTROLLER, "_quintic_B.mat"));
+        end
+    elseif PROFILE == "bang_bang"
+        if TRAJ == 'A'
+            path = strcat(path, strcat(CONTROLLER, "_bb_A.mat"));
+        else
+            path = strcat(path, strcat(CONTROLLER, "_bb_B.mat"));
+        end
+    elseif PROFILE == "bang_coast_bang"
+        if TRAJ == 'A'
+            path = strcat(path, strcat(CONTROLLER, "_bcb_A.mat"));
+        else
+            path = strcat(path, strcat(CONTROLLER, "_bcb_B.mat"));
+        end
+    else
+        error('Unknown PROFILE type. Use "quintic", "bang_bang", or "bang_coast_bang".');
+    end
+end
+
 %% 1. CARICAMENTO DATI
-fprintf('Caricamento del file di risultati ''../results/matched/optimized/quintic/FBL_quintic_A.mat''...\n');
+fprintf('Caricamento del file di risultati ''%s''...\n', path);
 try
-    load('../results/matched/optimized/quintic/FBL_quintic_A.mat', 'results'); 
+    load(path, 'results');
     fprintf('✓ File caricato con successo.\n');
 catch ME
     fprintf('ERRORE: Impossibile trovare il file dei risultati PBC.\n');
