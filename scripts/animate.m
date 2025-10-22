@@ -2,15 +2,14 @@ clear; clc; close all;
 
 fprintf('=== ANIMAZIONE TRAIETTORIA PBC (VISTA DOPPIA) ===\n\n');
 
-CONTROLLER = "FBL";
+CONTROLLER = "PBC";
 CHECK_OPTIMIZATION = false;
-TRAJ = 'A';
-MATCHED_START = true;
-OPTIMIZED_GAINS = true;
-PROFILE = "quintic"; % "quintic" , "bang_bang", "bang_coast_bang"
+TRAJ = 'B';
+MATCHED_START = false;
+OPTIMIZED_GAINS = false;
+PROFILE = "bang_bang"; % "quintic" , "bang_bang", "bang_coast_bang"
 
-path = "../results/";
-
+path = sprintf("../results/%s/", CONTROLLER);
 if CHECK_OPTIMIZATION
     path = strcat(path, strcat(CONTROLLER, "_quintic_results.mat"));
     % path = strcat(path, "FBL_quintic_results_half.mat");
@@ -22,7 +21,7 @@ else
     if MATCHED_START
         path = strcat(path, "matched/");
     else
-        path = strcat(path, "unmatched/");
+        path = strcat(path, "mismatched/");
     end
 
     if OPTIMIZED_GAINS
@@ -32,23 +31,14 @@ else
     end
 
     if PROFILE == "quintic"
-        if TRAJ == 'A'
-            path = strcat(path, strcat(CONTROLLER, "_quintic_A.mat"));
-        else
-            path = strcat(path, strcat(CONTROLLER, "_quintic_B.mat"));
-        end
+        path = strcat(path, "quintic/");
+        path = strcat(path, strcat(CONTROLLER, sprintf("_quintic_%s.mat", TRAJ)));
     elseif PROFILE == "bang_bang"
-        if TRAJ == 'A'
-            path = strcat(path, strcat(CONTROLLER, "_bb_A.mat"));
-        else
-            path = strcat(path, strcat(CONTROLLER, "_bb_B.mat"));
-        end
+        path = strcat(path, "bang_bang/");      
+        path = strcat(path, strcat(CONTROLLER, sprintf("_bb_%s.mat", TRAJ)));
     elseif PROFILE == "bang_coast_bang"
-        if TRAJ == 'A'
-            path = strcat(path, strcat(CONTROLLER, "_bcb_A.mat"));
-        else
-            path = strcat(path, strcat(CONTROLLER, "_bcb_B.mat"));
-        end
+        path = strcat(path, "bang_coast_bang/");
+        path = strcat(path, strcat(CONTROLLER, sprintf("_bcb_%s.mat", TRAJ)));
     else
         error('Unknown PROFILE type. Use "quintic", "bang_bang", or "bang_coast_bang".');
     end
