@@ -2,17 +2,15 @@ clear; clc; close all;
 
 fprintf('=== ANIMAZIONE TRAIETTORIA PBC (VISTA DOPPIA) ===\n\n');
 
-CONTROLLER = "FBL";
+CONTROLLER = "PBC";
 CHECK_OPTIMIZATION = false;
 TRAJ = 'B';
 MATCHED_START = false;
-OPTIMIZED_GAINS = true;
-PROFILE = "quintic"; % "quintic" , "bang_bang", "bang_coast_bang"
+OPTIMIZED_GAINS = false;
+PROFILE = "bang_bang"; % "quintic" , "bang_bang", "bang_coast_bang"
 
-path = "../results/";
-if CONTROLLER == "PBC"
-    path = "PBC_numeric_results.mat";
-elseif CHECK_OPTIMIZATION
+path = sprintf("../results/%s/", CONTROLLER);
+if CHECK_OPTIMIZATION
     path = strcat(path, strcat(CONTROLLER, "_quintic_results.mat"));
     % path = strcat(path, "FBL_quintic_results_half.mat");
     % path = strcat(path, "FBL_quintic_results_double.mat");
