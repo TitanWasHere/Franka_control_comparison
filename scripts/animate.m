@@ -4,10 +4,10 @@ fprintf('=== ANIMAZIONE TRAIETTORIA PBC (VISTA DOPPIA) ===\n\n');
 
 CONTROLLER = "FBL";
 CHECK_OPTIMIZATION = false;
-TRAJ = 'B';
+TRAJ = 'A';
 MATCHED_START = true;
 OPTIMIZED_GAINS = true;
-PROFILE = "bang_bang"; % "quintic" , "bang_bang", "bang_coast_bang"
+PROFILE = "quintic"; % "quintic" , "bang_bang", "bang_coast_bang"
 
 path = "../results/";
 
@@ -32,21 +32,18 @@ else
     end
 
     if PROFILE == "quintic"
-        path = strcat(path, "quintic/");
         if TRAJ == 'A'
             path = strcat(path, strcat(CONTROLLER, "_quintic_A.mat"));
         else
             path = strcat(path, strcat(CONTROLLER, "_quintic_B.mat"));
         end
     elseif PROFILE == "bang_bang"
-        path = strcat(path, "bang_bang/");
         if TRAJ == 'A'
             path = strcat(path, strcat(CONTROLLER, "_bb_A.mat"));
         else
             path = strcat(path, strcat(CONTROLLER, "_bb_B.mat"));
         end
     elseif PROFILE == "bang_coast_bang"
-        path = strcat(path, "bang_coast_bang/");
         if TRAJ == 'A'
             path = strcat(path, strcat(CONTROLLER, "_bcb_A.mat"));
         else
