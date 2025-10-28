@@ -40,16 +40,7 @@ addpath("../lib");
 addpath(".");
 run("../lib/setup_numerical_parameters.m");
 
-controller_gains = setup_controller_gains();
-
-% Configurazione controller gains
-if OPTIMIZED_GAINS
-    controller_gains.Kp = controller_gains.Kp * 2;
-    controller_gains.Kd = controller_gains.Kd + 10;
-else
-    controller_gains.Kp = controller_gains.Kp;
-    controller_gains.Kd = controller_gains.Kd;
-end
+controller_gains = FBL_gains(OPTIMIZED_GAINS);
 
 fprintf('Gains FBL numerici:\n');
 fprintf('  Kp = diag([%.0f, %.0f, %.0f, %.0f, %.0f, %.0f, %.0f])\n', diag(controller_gains.Kp));
@@ -115,9 +106,9 @@ fprintf('\n=== SIMULAZIONE FBL CON TRAIETTORIA BANG-BANG ===\n');
 fprintf('Integrando equazioni dinamiche...\n');
 
 tic;
-[t_sim, x_sim] = ode45(@(t, x) robot_dynamics_bang_bang(t, x, q0, qf, T_final, @FBL_numeric, ...
-                                                        controller_gains, true_params_vec, uncertain_params), ...
-                       [0 T_final], x0, options);
+[t_sim, x_sim] = ode15s(@(t,x) robot_dynamics(t, x, @generate_bang_bang_trajectory, {q0, qf, T_final}, ...
+                                                      @FBL, controller_gains, true_params_vec, uncertain_params), ...
+                      [0 T_final], x0, options);
 sim_time = toc;
 
 fprintf('✓ Simulazione completata in %.3f secondi\n', sim_time);
@@ -233,7 +224,7 @@ tau_computed = zeros(length(tau_sample_idx), 7);
 for i = 1:length(tau_sample_idx)
     idx = tau_sample_idx(i);
     [q_d, qd_d, qdd_d] = generate_bang_bang_trajectory(t_sim(idx), q0, qf, T_final);
-    tau_computed(i,:) = FBL_numeric(q_sim(:,idx), qd_sim(:,idx), q_d, qd_d, qdd_d, controller_gains, uncertain_params);
+    tau_computed(i,:) = FBL(q_sim(:,idx), qd_sim(:,idx), q_d, qd_d, qdd_d, controller_gains, uncertain_params);
 end
 
 %% GENERAZIONE GRAFICI E SALVATAGGIO

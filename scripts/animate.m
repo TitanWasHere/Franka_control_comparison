@@ -1,13 +1,13 @@
 clear; clc; close all;
 
-fprintf('=== ANIMAZIONE TRAIETTORIA PBC (VISTA DOPPIA) ===\n\n');
+fprintf('=== ANIMAZIONE TRAIETTORIA (VISTA DOPPIA) ===\n\n');
 
-CONTROLLER = "PBC";
+CONTROLLER = "FBL";
 CHECK_OPTIMIZATION = false;
-TRAJ = 'B';
-MATCHED_START = false;
-OPTIMIZED_GAINS = false;
-PROFILE = "bang_bang"; % "quintic" , "bang_bang", "bang_coast_bang"
+TRAJ = 'A';
+MATCHED_START = true;
+OPTIMIZED_GAINS = true;
+PROFILE = "quintic"; % "quintic" , "bang_bang", "bang_coast_bang"
 
 path = sprintf("../results/%s/", CONTROLLER);
 if CHECK_OPTIMIZATION
@@ -85,9 +85,9 @@ addBody(robot, tcp_body, 'panda_hand');
 fprintf('✓ Tool Center Point (TCP) definito e aggiunto al robot.\n');
 % ---------------------------------------------------------
 
-fig = figure('Name', 'Animazione Traiettoria PBC - Vista Dettagliata', ...
+fig = figure('Name', 'Animazione Traiettoria Franka', ...
     'Position', [50 50 1600 800], 'Color', 'w');
-sgtitle('Analisi Traiettoria PBC', 'FontSize', 16, 'FontWeight', 'bold');
+sgtitle(fprintf('Analisi Traiettoria %s', CONTROLLER), 'FontSize', 16, 'FontWeight', 'bold');
 
 % --- Subplot 1: Vista con Mesh ---
 ax1 = subplot(1, 2, 1);
@@ -193,7 +193,7 @@ for i = 1:frame_skip:num_points
         end
     end
 
-    sgtitle(sprintf('Analisi Traiettoria PBC - Tempo: %.2f s / %.2f s', current_sim_time, t_sim(end)));
+    sgtitle(sprintf('Analisi Traiettoria %s - Tempo: %.2f s / %.2f s', CONTROLLER, current_sim_time, t_sim(end)));
     drawnow;
     
     elapsed_real_time = toc(animation_timer);

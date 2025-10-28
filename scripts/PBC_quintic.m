@@ -42,18 +42,9 @@ end
 addpath("../lib");
 run("../lib/setup_numerical_parameters.m");
 
-controller_gains = setup_controller_gains();
+controller_gains = PBC_gains(OPTIMIZED_GAINS);
 
-if OPTIMIZED_GAINS
-    controller_gains.Kp = controller_gains.Kp * 2;
-    controller_gains.Kd = controller_gains.Kd + 10;
-else
-    controller_gains.Kp = controller_gains.Kp;
-    controller_gains.Kd = controller_gains.Kd;
-end
-
-fprintf('Gains PBC:\n');
-fprintf('  Kp = diag([%.0f, %.0f, %.0f, %.0f, %.0f, %.0f, %.0f])\n', diag(controller_gains.Kp));
+fprintf('Gains PBC numerici:\n');
 fprintf('  Kd = diag([%.0f, %.0f, %.0f, %.0f, %.0f, %.0f, %.0f])\n', diag(controller_gains.Kd));
 fprintf('  Lambda = diag([%.0f, %.0f, %.0f, %.0f, %.0f, %.0f, %.0f])\n', diag(controller_gains.Lambda));
 

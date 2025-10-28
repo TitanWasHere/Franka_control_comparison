@@ -40,18 +40,11 @@ addpath("../lib");
 addpath(".");
 run("../lib/setup_numerical_parameters.m");
 
-controller_gains = setup_controller_gains();
-
-% Configurazione controller gains
-if OPTIMIZED_GAINS
-    controller_gains.Kd = controller_gains.Kd + 10;
-else
-    controller_gains.Kd = controller_gains.Kd;
-end
+controller_gains = PBC_gains(OPTIMIZED_GAINS);
 
 fprintf('Gains PBC numerici:\n');
-fprintf('  Kp = diag([%.0f, %.0f, %.0f, %.0f, %.0f, %.0f, %.0f])\n', diag(controller_gains.Kp));
 fprintf('  Kd = diag([%.0f, %.0f, %.0f, %.0f, %.0f, %.0f, %.0f])\n', diag(controller_gains.Kd));
+fprintf('  Lambda = diag([%.0f, %.0f, %.0f, %.0f, %.0f, %.0f, %.0f])\n', diag(controller_gains.Lambda));
 
 %% DEFINIZIONE TRAIETTORIA BANG-BANG
 

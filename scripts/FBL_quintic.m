@@ -42,15 +42,7 @@ end
 addpath("../lib");
 run("../lib/setup_numerical_parameters.m");
 
-controller_gains = setup_controller_gains();
-
-if OPTIMIZED_GAINS
-    controller_gains.Kp = controller_gains.Kp * 2;
-    controller_gains.Kd = controller_gains.Kd + 10;
-else
-    controller_gains.Kp = controller_gains.Kp;
-    controller_gains.Kd = controller_gains.Kd;
-end
+controller_gains = FBL_gains(OPTIMIZED_GAINS);
 
 fprintf('Gains FBL numerici:\n');
 fprintf('  Kp = diag([%.0f, %.0f, %.0f, %.0f, %.0f, %.0f, %.0f])\n', diag(controller_gains.Kp));
@@ -93,9 +85,15 @@ uncertain_params = uncertain_params.inertia_coriolis;
 fprintf('\n=== FBL CALCULATING ===\n');
 
 tic;
-[t_sim, x_sim] = ode45(@(t, x) robot_dynamics_numeric(t, x, q0, qf, T_final, @FBL_stable, ...
-                                                      controller_gains, true_params_vec, uncertain_params), ...
-                       [0 T_final], x0, options);
+%function dx = robot_dynamics(t, x, trajectory_func, trajectory_params, controller_func, controller_gains, true_params, uncertain_params)
+
+[t_sim, x_sim] = ode15s(@(t,x) robot_dynamics(t, x, @generate_quintic_trajectory, {q0, qf, T_final}, ...
+                                                      @FBL, controller_gains, true_params_vec, uncertain_params), ...
+                      [0 T_final], x0, options);
+
+%[t_sim, x_sim] = ode15s(@(t, x) robot_dynamics(t, x, q0, qf, T_final, @FBL_stable, ...
+%                                                      controller_gains, true_params_vec, uncertain_params), ...
+%                       [0 T_final], x0, options);
 sim_time = toc;
 
 fprintf('✓ Simulation completed in %.3f seconds\n', sim_time);
@@ -115,7 +113,7 @@ qd_desired = zeros(7, n_points);
 qdd_desired = zeros(7, n_points);
 
 for i = 1:n_points
-    [q_desired(:,i), qd_desired(:,i), qdd_desired(:,i)] = generate_trajectory(t_sim(i), q0, qf, T_final);
+    [q_desired(:,i), qd_desired(:,i), qdd_desired(:,i)] = generate_quintic_trajectory(t_sim(i), q0, qf, T_final);
 end
 
 % Calcola errori (effettivo - desiderato)
@@ -183,8 +181,8 @@ fprintf('✓ Error end-effector - Max: %.2f mm, RMS: %.2f mm\n', max_ee_error, r
 fprintf('Calcolo coppie di controllo...\n');
 tau_computed = zeros(length(t_sim), 7);
 for i = 1:length(t_sim)
-    [q_d, qd_d, qdd_d] = generate_trajectory(t_sim(i), q0, qf, T_final);
-    tau_computed(i,:) = FBL_numeric(q_sim(:,i), qd_sim(:,i), q_d, qd_d, qdd_d, controller_gains, uncertain_params);
+    [q_d, qd_d, qdd_d] = generate_quintic_trajectory(t_sim(i), q0, qf, T_final);
+    tau_computed(i,:) = FBL(q_sim(:,i), qd_sim(:,i), q_d, qd_d, qdd_d, controller_gains, uncertain_params);
 end
 
 %% GENERAZIONE GRAFICI E SALVATAGGIO

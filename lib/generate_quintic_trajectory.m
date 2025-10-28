@@ -1,4 +1,4 @@
-function [q_d, qd_d, qdd_d] = generate_trajectory(t, q0, qf, T_final)
+function [q_d, qd_d, qdd_d] = generate_quintic_trajectory(t, q0, qf, T_final)
     % ensure time is within [0, T_final]
     if t < 0
         t = 0;
