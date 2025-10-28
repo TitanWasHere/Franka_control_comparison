@@ -1,4 +1,4 @@
-function tau = FBL_numeric(q, qd, q_des, qd_des, qdd_des, controller_gains, uncertain_params)
+function tau = FBL(q, qd, q_des, qd_des, qdd_des, controller_gains, uncertain_params)
     % controller gains
     Kp = controller_gains.Kp;
     Kd = controller_gains.Kd;
