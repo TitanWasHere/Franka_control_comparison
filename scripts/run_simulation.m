@@ -1,8 +1,10 @@
 clear; clc; close all;
 
+addpath("../lib/")
+
 config.controller_type = "FBL";
-config.trajectory_type = "quintic";
-config.traj_label      = 'A';
+config.trajectory_type = "bang_bang";
+config.traj_label      = 'B';
 config.matched_start   = true;
 config.optimized_gains = false;
 config.T_final         = 8.0;
