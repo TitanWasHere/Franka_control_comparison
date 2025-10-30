@@ -2,55 +2,45 @@ clear; clc; close all;
 
 fprintf('=== ANIMAZIONE TRAIETTORIA (VISTA DOPPIA) ===\n\n');
 
-CONTROLLER = "FBL";
-CHECK_OPTIMIZATION = false;
+%% config params
+CONTROLLER = "PBC";
 TRAJ = 'A';
-MATCHED_START = true;
-OPTIMIZED_GAINS = true;
-PROFILE = "quintic"; % "quintic" , "bang_bang", "bang_coast_bang"
+MATCHED_START = false;
+OPTIMIZED_GAINS = false;
+PROFILE = "quintic"; % "quintic", "bang_bang", "bang_coast_bang"
 
-path = sprintf("../results/%s/", CONTROLLER);
-if CHECK_OPTIMIZATION
-    path = strcat(path, strcat(CONTROLLER, "_quintic_results.mat"));
-    % path = strcat(path, "FBL_quintic_results_half.mat");
-    % path = strcat(path, "FBL_quintic_results_double.mat");
-    % path = strcat(path, "FBL_quintic_double_more.mat");
-    % path = strcat(path, "FBL_quintic_double_half.mat");
-    % path = strcat(path, "FBL_quintic_double_double.mat");
-else
-    if MATCHED_START
-        path = strcat(path, "matched/");
-    else
-        path = strcat(path, "mismatched/");
-    end
-
-    if OPTIMIZED_GAINS
-        path = strcat(path, "optimized/");
-    else
-        path = strcat(path, "unoptimized/");
-    end
-
-    if PROFILE == "quintic"
-        path = strcat(path, "quintic/");
-        path = strcat(path, strcat(CONTROLLER, sprintf("_quintic_%s.mat", TRAJ)));
-    elseif PROFILE == "bang_bang"
-        path = strcat(path, "bang_bang/");      
-        path = strcat(path, strcat(CONTROLLER, sprintf("_bb_%s.mat", TRAJ)));
-    elseif PROFILE == "bang_coast_bang"
-        path = strcat(path, "bang_coast_bang/");
-        path = strcat(path, strcat(CONTROLLER, sprintf("_bcb_%s.mat", TRAJ)));
-    else
-        error('Unknown PROFILE type. Use "quintic", "bang_bang", or "bang_coast_bang".');
-    end
+%% path setup
+try
+    this_script_path = mfilename('fullpath');
+    [script_dir, ~, ~] = fileparts(this_script_path);
+    [project_root, ~, ~] = fileparts(script_dir);
+catch
+    project_root = pwd; 
+    warning('Could not determine project root automatically. Assuming current directory is project root.');
 end
 
-%% 1. CARICAMENTO DATI
-fprintf('Caricamento del file di risultati ''%s''...\n', path);
+sub_path = sprintf("%s/", CONTROLLER); 
+if MATCHED_START, sub_path = strcat(sub_path, "matched/"); else, sub_path = strcat(sub_path, "mismatched/"); end
+if OPTIMIZED_GAINS, sub_path = strcat(sub_path, "optimized/"); else, sub_path = strcat(sub_path, "unoptimized/"); end
+sub_path = strcat(sub_path, sprintf("%s/", PROFILE));
+
+switch PROFILE
+    case "quintic", traj_suffix = "quintic";
+    case "bang_bang", traj_suffix = "bb";
+    case "bang_coast_bang", traj_suffix = "bcb";
+    otherwise, error('Unknown PROFILE type.');
+end
+file_name = sprintf("%s_%s_%s.mat", CONTROLLER, traj_suffix, TRAJ);
+path = fullfile(project_root, 'results', sub_path, file_name);
+
+
+%% data loading
+fprintf('Loading results file ''%s''...\n', path);
 try
     load(path, 'results');
-    fprintf('✓ File caricato con successo.\n');
+    fprintf('File loaded succesfully.\n');
 catch ME
-    fprintf('ERRORE: Impossibile trovare il file dei risultati PBC.\n');
+    fprintf('Could not find the results file.\n');
     rethrow(ME);
 end
 
@@ -58,70 +48,54 @@ t_sim       = results.simulation.t;
 q_sim_7dof  = results.simulation.q';
 q_desired_7dof = results.desired.q';
 
-%% 2. AUMENTA LA CONFIGURAZIONE A 9 GIUNTI PER COMPATIBILITÀ
+%% augment config
 gripper_state = [0.02, 0.02];
 num_points = size(q_sim_7dof, 1);
 q_sim     = [q_sim_7dof, repmat(gripper_state, num_points, 1)];
 q_desired = [q_desired_7dof, repmat(gripper_state, num_points, 1)];
-fprintf('✓ Dati di traiettoria aumentati a 9 giunti.\n');
 
-%% 3. SETUP MODELLO ROBOT E FIGURA
-fprintf('Setup del modello del robot e dell''ambiente di visualizzazione...\n');
+%% robot model and figure setup
+fprintf('Setting up robot model and visualization environment...\n');
 try
     robot = loadrobot('frankaEmikaPanda', 'DataFormat', 'row', 'Gravity', [0 0 -9.81]);
 catch ME
-    fprintf('ERRORE: Assicurati di avere la Robotics System Toolbox™ installata.\n');
+    fprintf('ERROR: you have the Robotics System Toolbox installed.\n');
     rethrow(ME);
 end
 
-% --- (FIX) DEFINIZIONE DEL TOOL CENTER POINT (TCP) ---
-% Creiamo un nuovo corpo rigido per rappresentare la punta dell'utensile (TCP)
 tcp_body = rigidBody('tcp');
-% Lo posizioniamo 10.7 cm in avanti lungo l'asse Z del frame 'panda_hand'
 tcp_offset = [0, 0, 0.107]; 
 setFixedTransform(tcp_body.Joint, trvec2tform(tcp_offset));
-% Aggiungiamo il nuovo corpo al modello del robot, attaccandolo alla mano
 addBody(robot, tcp_body, 'panda_hand');
-fprintf('✓ Tool Center Point (TCP) definito e aggiunto al robot.\n');
-% ---------------------------------------------------------
 
-fig = figure('Name', 'Animazione Traiettoria Franka', ...
+fig = figure('Name', 'Franka trajectory animation', ...
     'Position', [50 50 1600 800], 'Color', 'w');
-sgtitle(fprintf('Analisi Traiettoria %s', CONTROLLER), 'FontSize', 16, 'FontWeight', 'bold');
+sgtitle(sprintf('Trajectory analysis %s', CONTROLLER), 'FontSize', 16, 'FontWeight', 'bold');
 
-% --- Subplot 1: Vista con Mesh ---
 ax1 = subplot(1, 2, 1);
 show(robot, q_sim(1,:), 'Parent', ax1, 'PreservePlot', false, 'Frames', 'off', 'Visuals', 'on');
 hold(ax1, 'on'); grid(ax1, 'on'); axis(ax1, 'equal');
-title(ax1, 'Vista Realistica (Mesh)', 'FontSize', 12);
+title(ax1, 'Realistic view', 'FontSize', 12);
 xlabel(ax1, 'X [m]'); ylabel(ax1, 'Y [m]'); zlabel(ax1, 'Z [m]');
 view(ax1, 135, 25);
 
-% --- Subplot 2: Vista a Scheletro ---
 ax2 = subplot(1, 2, 2);
 show(robot, q_sim(1,:), 'Parent', ax2, 'PreservePlot', false, 'Frames', 'off', 'Visuals', 'off');
 hold(ax2, 'on'); grid(ax2, 'on'); axis(ax2, 'equal');
-title(ax2, 'Vista Cinematica (Scheletro)', 'FontSize', 12);
+title(ax2, 'Kinematic view', 'FontSize', 12);
 xlabel(ax2, 'X [m]'); ylabel(ax2, 'Y [m]'); zlabel(ax2, 'Z [m]');
 view(ax2, 135, 25);
 
-% --- Giunti e link (ora include il TCP) ---
 bodies = setdiff(robot.BodyNames, {'panda_leftfinger', 'panda_rightfinger', 'panda_gripper'});
 n_bodies = numel(bodies);
-
 joint_markers = gobjects(n_bodies,1);
 link_lines    = gobjects(n_bodies,1);
-
 for b = 1:n_bodies
     body_name = bodies{b};
-    if strcmp(body_name, 'base')
-        continue;
-    end
-    
+    if strcmp(body_name, 'base'), continue; end
     T = getTransform(robot, q_sim(1,:), body_name);
     p = tform2trvec(T);
     joint_markers(b) = plot3(ax2, p(1), p(2), p(3), 'ko', 'MarkerFaceColor', 'y', 'MarkerSize', 8);
-    
     parentBody = robot.getBody(body_name).Parent;
     if ~isempty(parentBody)
         Tp = getTransform(robot, q_sim(1,:), parentBody.Name);
@@ -129,23 +103,21 @@ for b = 1:n_bodies
         link_lines(b) = plot3(ax2, [pp(1) p(1)], [pp(2) p(2)], [pp(3) p(3)], 'k-', 'LineWidth', 2);
     end
 end
-
 linkprop([ax1, ax2], {'CameraPosition','CameraUpVector','CameraTarget','XLim','YLim','ZLim'});
 xlim(ax1, [-0.8, 0.8]); ylim(ax1, [-0.8, 0.8]); zlim(ax1, [-0.2, 1.3]);
-fprintf('✓ Setup visualizzazione completato.\n');
 
-%% 4. POSIZIONI END-EFFECTOR
-fprintf('Calcolo delle posizioni dell''end-effector...\n');
-ee_name = 'tcp'; % <-- (FIX) USARE IL NUOVO TCP PER TUTTI I CALCOLI
+%% end-effector positions
+fprintf('Computing end-effector positions...\n');
+ee_name = 'tcp';
 pos_desired_ee = zeros(num_points, 3);
 pos_actual_ee  = zeros(num_points, 3);
 for i = 1:num_points
+    % Calcola la trasformazione per ogni punto temporale, una riga alla volta
     pos_desired_ee(i,:) = tform2trvec(getTransform(robot, q_desired(i,:), ee_name));
     pos_actual_ee(i,:)  = tform2trvec(getTransform(robot, q_sim(i,:), ee_name));
 end
-fprintf('✓ Calcolo cinematico completato.\n');
 
-%% 5. TRAIETTORIE
+%% trajectories
 axes_list = [ax1, ax2];
 plot_handles = struct();
 for i = 1:length(axes_list)
@@ -155,8 +127,8 @@ for i = 1:length(axes_list)
     plot_handles(i).ee_marker = plot3(ax, pos_actual_ee(1,1), pos_actual_ee(1,2), pos_actual_ee(1,3), 'o', 'MarkerFaceColor', [0.8 0.2 0.2], 'MarkerEdgeColor', 'k', 'MarkerSize', 10);
 end
 
-%% 6. ANIMAZIONE (OTTIMIZZATA)
-fprintf('Avvio animazione... (Premi CTRL+C per interrompere)\n');
+%% animation
+fprintf('Starting animation...\n');
 
 animation_fps = 30;
 speedup_factor = 1.5;
@@ -177,14 +149,10 @@ for i = 1:frame_skip:num_points
 
     for b = 1:n_bodies
         body_name = bodies{b};
-        if strcmp(body_name, 'base')
-            continue;
-        end
-        
+        if strcmp(body_name, 'base'), continue; end
         T = getTransform(robot, q_current, body_name);
         p = tform2trvec(T);
         set(joint_markers(b), 'XData', p(1), 'YData', p(2), 'ZData', p(3));
-
         parentBody = robot.getBody(body_name).Parent;
         if ~isempty(parentBody)
             Tp = getTransform(robot, q_current, parentBody.Name);
@@ -193,7 +161,7 @@ for i = 1:frame_skip:num_points
         end
     end
 
-    sgtitle(sprintf('Analisi Traiettoria %s - Tempo: %.2f s / %.2f s', CONTROLLER, current_sim_time, t_sim(end)));
+    sgtitle(sprintf('Trajectory analysis %s - Tempo: %.2f s / %.2f s', CONTROLLER, current_sim_time, t_sim(end)));
     drawnow;
     
     elapsed_real_time = toc(animation_timer);
@@ -203,5 +171,5 @@ for i = 1:frame_skip:num_points
     end
 end
 
-sgtitle(sprintf('Animazione Completata (Tempo Finale: %.2f s)', t_sim(end)), 'Color', [0 .6 0]);
-fprintf('\n🎉 Animazione completata!\n');
+sgtitle(sprintf('Animation complete (Final time: %.2f s)', t_sim(end)), 'Color', [0 .6 0]);
+fprintf('\nAnimation complete.\n');

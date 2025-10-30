@@ -4,7 +4,7 @@ config.controller_type = "FBL";
 config.trajectory_type = "quintic";
 config.traj_label      = 'A';
 config.matched_start   = true;
-config.optimized_gains = true;
+config.optimized_gains = false;
 config.T_final         = 8.0;
 
 [config, controller_gains, uncertain_params, true_params_vec, x0] = setup_simulation(config);
