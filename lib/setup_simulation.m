@@ -53,6 +53,12 @@ function [config, controller_gains, uncertain_params, true_params_vec, x0] = set
         q0 = [3*pi/2, -pi/4, 0, -3*pi/4, 0, pi/2, pi/4]';
         qf = q0 + [0.5, -0.5, pi/2, -pi/2, 0.0,pi, 0.5]';
     end
+
+    % safety limits
+    limits = setup_robot_limits();
+    q_max_safe = limits.q_max - limits.safety_margin;
+    q_min_safe = limits.q_min + limits.safety_margin;
+    qf = max(q_min_safe, min(qf, q_max_safe));
     
     COAST_FRACTION = 0.4;
     switch config.trajectory_type
