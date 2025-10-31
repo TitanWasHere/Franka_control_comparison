@@ -2,11 +2,11 @@ clear; clc; close all;
 
 addpath("../lib/")
 
-config.controller_type = "FBL";
+config.controller_type = "PBC";
 config.trajectory_type = "bang_bang";
 config.traj_label      = 'B';
-config.matched_start   = true;
-config.optimized_gains = false;
+config.matched_start   = false;
+config.optimized_gains = true;
 config.T_final         = 8.0;
 
 [config, controller_gains, uncertain_params, true_params_vec, x0] = setup_simulation(config);

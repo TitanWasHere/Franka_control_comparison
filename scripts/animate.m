@@ -3,10 +3,10 @@ clear; clc; close all;
 fprintf('=== ANIMAZIONE TRAIETTORIA (VISTA DOPPIA) ===\n\n');
 
 %% config params
-CONTROLLER = "FBL";
+CONTROLLER = "PBC";
 TRAJ = 'B';
-MATCHED_START = true;
-OPTIMIZED_GAINS = false;
+MATCHED_START = false;
+OPTIMIZED_GAINS = true;
 PROFILE = "bang_bang"; % "quintic", "bang_bang", "bang_coast_bang"
 
 %% path setup

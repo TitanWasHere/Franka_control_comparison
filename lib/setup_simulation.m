@@ -50,7 +50,7 @@ function [config, controller_gains, uncertain_params, true_params_vec, x0] = set
         q0 = [0, -pi/4, 0, -3*pi/4, 0, pi/2, pi/4]'; 
         qf = q0 + [0.3, 0.2, 0.3, 0.2, 0.3, 0.2, 0.3]';
     else % 'B'
-        q0 = [3*pi/2, -pi/4, 0, -3*pi/4, 0, pi/2, pi/4]';
+        q0 = [-pi/2, -pi/4, 0, -3*pi/4, 0, pi/2, pi/4]';
         qf = q0 + [0.5, -0.5, pi/2, -pi/2, 0.0,pi, 0.5]';
     end
 
