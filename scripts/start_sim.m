@@ -1,10 +1,11 @@
-function start_sim(type, traj, traj_label, matched, optimized, T_final)
+function start_sim(type, traj, traj_label, matched, optimized, T_final, uncertainty)
     config.controller_type = type;%"PBC";
     config.trajectory_type = traj;%"quintic";
     config.traj_label      = traj_label;%'A';
     config.matched_start   = matched;%true;
     config.optimized_gains = optimized;%false;
     config.T_final         = T_final;%8.0;
+    config.uncertainty_level = uncertainty; %"high";
 
     [config, controller_gains, uncertain_params, true_params_vec, x0] = setup_simulation(config);
     if config.controller_type == "FBL"

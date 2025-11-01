@@ -2,8 +2,8 @@ function gains = PBC_gains(isOptimized)
     if nargin < 1, isOptimized = false; end
 
     % default gains
-    Kp = diag([40, 40, 40, 40, 30, 30, 30]);
-    Kd = diag([30, 30, 30, 30, 20, 20, 20]);
+    Kp = diag([100, 100, 100, 100, 50, 50, 50]);
+    Kd = diag([20, 20, 20, 20, 10, 10, 10]);
 
     % optimized gains
     if isOptimized == true

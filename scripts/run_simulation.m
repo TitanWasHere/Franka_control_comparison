@@ -7,7 +7,9 @@ config.trajectory_type = "bang_bang";
 config.traj_label      = 'B';
 config.matched_start   = false;
 config.optimized_gains = true;
+config.uncertainty_level = "low";  % Options: "friction", "low", "mid", "high", "extreme"
 config.T_final         = 8.0;
+config.uncertainty_level = "extreme";
 
 [config, controller_gains, uncertain_params, true_params_vec, x0] = setup_simulation(config);
 if config.controller_type == "FBL"

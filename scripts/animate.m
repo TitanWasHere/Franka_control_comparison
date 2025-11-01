@@ -6,8 +6,8 @@ fprintf('=== ANIMAZIONE TRAIETTORIA (VISTA DOPPIA) ===\n\n');
 CONTROLLER = "PBC";
 TRAJ = 'B';
 MATCHED_START = false;
-OPTIMIZED_GAINS = true;
-PROFILE = "bang_bang"; % "quintic", "bang_bang", "bang_coast_bang"
+OPTIMIZED_GAINS = false;
+PROFILE = "quintic"; % "quintic", "bang_bang", "bang_coast_bang"
 
 %% path setup
 try

@@ -13,10 +13,32 @@ function [config, controller_gains, uncertain_params, true_params_vec, x0] = set
     
     addpath(fullfile(project_root, 'lib'));
     run(fullfile(project_root, 'lib', 'setup_numerical_parameters.m'));
-    uncertain_params = setup_uncertainty_levels(true_params_vec).inertia_coriolis;
+    
+    % Get uncertain parameters based on uncertainty level
+    if ~isfield(config, 'uncertainty_level')
+        config.uncertainty_level = "low"; % default
+    end
+    
+    uncertainty_levels_struct = setup_uncertainty_levels(true_params_vec);
+    switch config.uncertainty_level
+        case "friction"
+            uncertain_params = uncertainty_levels_struct.friction_only;
+        case "low"
+            uncertain_params = uncertainty_levels_struct.low;
+        case "mid"
+            uncertain_params = uncertainty_levels_struct.mid;
+        case "high"
+            uncertain_params = uncertainty_levels_struct.high;
+        case "extreme"
+            uncertain_params = uncertainty_levels_struct.extreme;
+        otherwise
+            warning('Unknown uncertainty level: %s. Using "low" as default.', config.uncertainty_level);
+            uncertain_params = uncertainty_levels_struct.low;
+    end
 
     %% construct file paths for results and plots
     sub_path = sprintf("%s/", config.controller_type);
+    sub_path = strcat(sub_path, sprintf("%s/", config.uncertainty_level));
     if config.matched_start, sub_path = strcat(sub_path, "matched/"); else, sub_path = strcat(sub_path, "mismatched/"); end
     if config.optimized_gains, sub_path = strcat(sub_path, "optimized/"); else, sub_path = strcat(sub_path, "unoptimized/"); end
     sub_path = strcat(sub_path, sprintf("%s/", config.trajectory_type));
@@ -30,7 +52,8 @@ function [config, controller_gains, uncertain_params, true_params_vec, x0] = set
     
     config.resultsPath = fullfile(project_root, 'results', sub_path, file_name);
     config.plot_dir = fullfile(project_root, 'plots', sub_path);
-    fprintf('  Controller: %s, Trajectory: %s (%s)\n', config.controller_type, config.trajectory_type, config.traj_label);
+    fprintf('  Controller: %s, Trajectory: %s (%s), Uncertainty: %s\n', ...
+            config.controller_type, config.trajectory_type, config.traj_label, config.uncertainty_level);
     fprintf('  Results will be saved to: %s\n', config.resultsPath);
 
     %% controller gains
