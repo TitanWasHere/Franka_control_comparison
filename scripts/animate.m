@@ -8,6 +8,7 @@ TRAJ = 'B';
 MATCHED_START = false;
 OPTIMIZED_GAINS = false;
 PROFILE = "quintic"; % "quintic", "bang_bang", "bang_coast_bang"
+UNCERTAINTY_LEVEL = "extreme"; % Options: "friction", "low", "mid", "high", "extreme"
 
 %% path setup
 try
@@ -19,7 +20,8 @@ catch
     warning('Could not determine project root automatically. Assuming current directory is project root.');
 end
 
-sub_path = sprintf("%s/", CONTROLLER); 
+sub_path = sprintf("%s/", CONTROLLER);
+sub_path = strcat(sub_path, sprintf("%s/", UNCERTAINTY_LEVEL));
 if MATCHED_START, sub_path = strcat(sub_path, "matched/"); else, sub_path = strcat(sub_path, "mismatched/"); end
 if OPTIMIZED_GAINS, sub_path = strcat(sub_path, "optimized/"); else, sub_path = strcat(sub_path, "unoptimized/"); end
 sub_path = strcat(sub_path, sprintf("%s/", PROFILE));
