@@ -106,6 +106,7 @@ fprintf(fid, '\\usepackage{booktabs}\n');
 fprintf(fid, '\\usepackage{array}\n');
 fprintf(fid, '\\usepackage{xcolor}\n');
 fprintf(fid, '\\usepackage{longtable}\n');
+fprintf(fid, '\\usepackage{float}\n');
 fprintf(fid, '\\usepackage{graphicx}\n');
 fprintf(fid, '\\usepackage{amsmath}\n');
 fprintf(fid, '\\definecolor{bestcolor}{RGB}{34,139,34}\n'); % Forest Green
@@ -159,7 +160,7 @@ for c = 1:length(controllers)
         joint_max_errors(i) = results_database.(ctrl_keys{i}).metrics.max_joint_error_deg;
     end
     
-    fprintf(fid, '\\begin{table}[h]\n');
+    fprintf(fid, '\\begin{table}[H]\n');
     fprintf(fid, '\\centering\n');
     fprintf(fid, '\\begin{tabular}{lc}\n');
     fprintf(fid, '\\toprule\n');
@@ -180,52 +181,154 @@ for c = 1:length(controllers)
     fprintf(fid, '\\end{table}\n\n');
 end
 
-%% Section 3: Detailed Comparison Tables (FIXED COLUMN WIDTH)
+%% Section 3: Detailed Comparison Tables (NEW CLEARER FORMAT)
 fprintf(fid, '\\section{Detailed Performance Tables}\n\n');
-fprintf(fid, 'Performance tables show FBL and PBC results on consecutive rows, with the better value (lower error) highlighted in \\textcolor{bestcolor}{Green}. The layout is optimized for head-to-head comparison.\n\n');
+fprintf(fid, 'Performance tables show results grouped by trajectory type, with test labels A and B, including averages for each configuration. Lower values indicate better performance.\n\n');
 
 % Group by uncertainty level
 uncertainty_levels = {'high', 'extreme'};
 trajectories = {'quintic', 'bang_bang', 'bang_coast_bang'};
+traj_display = {'Quintic', 'Bang-Bang', 'Bang-Coast-Bang'};
 
 for u = 1:length(uncertainty_levels)
     unc = uncertainty_levels{u};
     fprintf(fid, '\\subsection{Uncertainty Level: %s}\n\n', upper(unc));
     
-    for t = 1:length(trajectories)
-        traj = trajectories{t};
-        traj_name = traj_map(traj); % Use mapped name (Quintic, BB, BCB)
+    % For each configuration (matched/mismatched, optimized/unoptimized)
+    configs = {'matched_optimized', 'matched_unoptimized', 'mismatched_optimized', 'mismatched_unoptimized'};
+    config_titles = {'Matched Initial Conditions, Optimized Gains', ...
+                     'Matched Initial Conditions, Unoptimized Gains', ...
+                     'Mismatched Initial Conditions, Optimized Gains', ...
+                     'Mismatched Initial Conditions, Unoptimized Gains'};
+    
+    for cfg_idx = 1:length(configs)
+        cfg = configs{cfg_idx};
+        cfg_title = config_titles{cfg_idx};
         
-        % Escaped trajectory name for subsubsection title
-        traj_name_esc = strrep(traj_name, '-', '\_');
-        fprintf(fid, '\\subsubsection{Trajectory: %s}\n\n', traj_name_esc);
+        fprintf(fid, '\\subsubsection{%s}\n\n', cfg_title);
         
-        % FIXED COLUMN WIDTH: Increased from p{1.5cm} to p{2.2cm} to prevent overflow
-        fprintf(fid, '\\begin{longtable}{lp{2.2cm}cccc}\n');
-        fprintf(fid, '\\caption{Performance comparison for %s trajectory with %s uncertainty} \\\\\n', traj_name_esc, unc);
+        % Create separate tables for FBL and PBC
+        for ctrl_idx = 1:2
+            if ctrl_idx == 1
+                ctrl = 'FBL';
+            else
+                ctrl = 'PBC';
+            end
+            
+            fprintf(fid, '\\begin{table}[H]\n');
+            fprintf(fid, '\\centering\n');
+            fprintf(fid, '\\caption{%s Controller - %s uncertainty - %s}\n', ctrl, unc, cfg_title);
+            fprintf(fid, '\\begin{tabular}{lcccc}\n');
+            fprintf(fid, '\\toprule\n');
+            fprintf(fid, 'Trajectory & Test & RMS Error (rad) & RMS Error (deg) & Final EE Error (mm) \\\\\n');
+            fprintf(fid, '\\midrule\n');
+            
+            % Collect data for each trajectory
+            for t_idx = 1:length(trajectories)
+                traj = trajectories{t_idx};
+                traj_name = traj_display{t_idx};
+                
+                % Get data for labels A and B
+                labels = {'A', 'B'};
+                traj_data = [];
+                
+                for lbl_idx = 1:length(labels)
+                    lbl = labels{lbl_idx};
+                    key = sprintf('%s_%s_%s_%s_%s', ctrl, unc, strrep(cfg, '_', '_'), traj, lbl);
+                    
+                    if isfield(results_database, key)
+                        m = results_database.(key).metrics;
+                        
+                        % Print trajectory name only on first row
+                        if lbl_idx == 1
+                            fprintf(fid, '%s & %s & %.4f & %.2f & %.2f \\\\\n', ...
+                                    traj_name, lbl, m.joint_rms_error_rad, m.rms_joint_error_deg, m.ee_final_error_mm);
+                        else
+                            fprintf(fid, '%s & %s & %.4f & %.2f & %.2f \\\\\n', ...
+                                    '', lbl, m.joint_rms_error_rad, m.rms_joint_error_deg, m.ee_final_error_mm);
+                        end
+                        
+                        % Store for average calculation
+                        traj_data = [traj_data; m.joint_rms_error_rad, m.rms_joint_error_deg, m.ee_final_error_mm];
+                    end
+                end
+                
+                % Add midrule after each trajectory pair (except last)
+                if t_idx < length(trajectories)
+                    fprintf(fid, '\\midrule\n');
+                end
+            end
+            
+            % Calculate and print overall average
+            fprintf(fid, '\\midrule\n');
+            
+            % Collect all data for average
+            all_data = [];
+            for t_idx = 1:length(trajectories)
+                traj = trajectories{t_idx};
+                for lbl_idx = 1:2
+                    lbl = labels{lbl_idx};
+                    key = sprintf('%s_%s_%s_%s_%s', ctrl, unc, strrep(cfg, '_', '_'), traj, lbl);
+                    if isfield(results_database, key)
+                        m = results_database.(key).metrics;
+                        all_data = [all_data; m.joint_rms_error_rad, m.rms_joint_error_deg, m.ee_final_error_mm];
+                    end
+                end
+            end
+            
+            if ~isempty(all_data)
+                avg_vals = mean(all_data, 1);
+                fprintf(fid, '\\textbf{Average} & & \\textbf{%.4f} & \\textbf{%.2f} & \\textbf{%.2f} \\\\\n', ...
+                        avg_vals(1), avg_vals(2), avg_vals(3));
+            end
+            
+            fprintf(fid, '\\bottomrule\n');
+            fprintf(fid, '\\end{tabular}\n');
+            fprintf(fid, '\\end{table}\n\n');
+        end
+    end
+end
+
+%% Section 4: FBL vs PBC Direct Comparison
+fprintf(fid, '\\section{FBL vs PBC Controller Comparison}\n\n');
+fprintf(fid, 'This section provides direct head-to-head comparisons between FBL and PBC controllers under identical conditions.\n\n');
+
+% Create comparison tables for each uncertainty level and configuration
+for u = 1:length(uncertainty_levels)
+    unc = uncertainty_levels{u};
+    fprintf(fid, '\\subsection{Uncertainty Level: %s}\n\n', upper(unc));
+    
+    configs = {'matched_optimized', 'matched_unoptimized', 'mismatched_optimized', 'mismatched_unoptimized'};
+    config_titles = {'Matched Initial Conditions, Optimized Gains', ...
+                     'Matched Initial Conditions, Unoptimized Gains', ...
+                     'Mismatched Initial Conditions, Optimized Gains', ...
+                     'Mismatched Initial Conditions, Unoptimized Gains'};
+    
+    for cfg_idx = 1:length(configs)
+        cfg = configs{cfg_idx};
+        cfg_title = config_titles{cfg_idx};
+        
+        fprintf(fid, '\\subsubsection{%s}\n\n', cfg_title);
+        
+        fprintf(fid, '\\begin{table}[H]\n');
+        fprintf(fid, '\\centering\n');
+        fprintf(fid, '\\caption{FBL vs PBC Comparison - %s uncertainty - %s}\n', unc, cfg_title);
+        fprintf(fid, '\\begin{tabular}{llcccc}\n');
         fprintf(fid, '\\toprule\n');
-        % Simple, one-line headers:
-        fprintf(fid, 'Controller & Config & EE Max [mm] & EE RMS [mm] & Jt Max [deg] & Jt RMS [deg] \\\\\n');
+        fprintf(fid, 'Trajectory & Controller & Test & RMS Error (rad) & RMS Error (deg) & Final EE Error (mm) \\\\\n');
         fprintf(fid, '\\midrule\n');
-        fprintf(fid, '\\endfirsthead\n');
-        fprintf(fid, '\\multicolumn{6}{c}{{\\tablename\\ \\thetable{} -- continued}} \\\\\n');
-        fprintf(fid, '\\toprule\n');
-        fprintf(fid, 'Controller & Config & EE Max [mm] & EE RMS [mm] & Jt Max [deg] & Jt RMS [deg] \\\\\n');
-        fprintf(fid, '\\midrule\n');
-        fprintf(fid, '\\endhead\n');
         
-        % Collect all matching results
-        configs = {'matched_optimized', 'matched_unoptimized', 'mismatched_optimized', 'mismatched_unoptimized'};
-        labels = {'A', 'B'};
-        
-        for cfg_idx = 1:length(configs)
-            cfg = configs{cfg_idx};
-            cfg_name = config_map(cfg); % Use mapped name (Match/Opt)
+        % For each trajectory
+        for t_idx = 1:length(trajectories)
+            traj = trajectories{t_idx};
+            traj_name = traj_display{t_idx};
+            
+            labels = {'A', 'B'};
             
             for lbl_idx = 1:length(labels)
                 lbl = labels{lbl_idx};
                 
-                % Find FBL and PBC results
+                % Get FBL and PBC data
                 fbl_key = sprintf('FBL_%s_%s_%s_%s', unc, strrep(cfg, '_', '_'), traj, lbl);
                 pbc_key = sprintf('PBC_%s_%s_%s_%s', unc, strrep(cfg, '_', '_'), traj, lbl);
                 
@@ -233,66 +336,59 @@ for u = 1:length(uncertainty_levels)
                     fbl_m = results_database.(fbl_key).metrics;
                     pbc_m = results_database.(pbc_key).metrics;
                     
-                    config_label = [cfg_name '-' lbl];
-                    
-                    % --- Coloring Logic (Lower is Better) ---
-                    metrics_to_compare = {'ee_max_error_mm', 'ee_rms_error_mm', 'max_joint_error_deg', 'rms_joint_error_deg'};
-                    fbl_str = cell(1, 4);
-                    pbc_str = cell(1, 4);
-                    
-                    for m_idx = 1:length(metrics_to_compare)
-                        metric = metrics_to_compare{m_idx};
-                        fbl_val = fbl_m.(metric);
-                        pbc_val = pbc_m.(metric);
-                        
-                        if fbl_val < pbc_val
-                            fbl_str{m_idx} = sprintf('\\textcolor{bestcolor}{%.2f}', fbl_val);
-                            pbc_str{m_idx} = sprintf('%.2f', pbc_val);
-                        elseif pbc_val < fbl_val
-                            fbl_str{m_idx} = sprintf('%.2f', fbl_val);
-                            pbc_str{m_idx} = sprintf('\\textcolor{bestcolor}{%.2f}', pbc_val);
-                        else
-                            fbl_str{m_idx} = sprintf('%.2f', fbl_val);
-                            pbc_str{m_idx} = sprintf('%.2f', pbc_val);
-                        end
-                    end
-                    
-                    % --- Print FBL and PBC rows (Config only on FBL row) ---
-                    fprintf(fid, 'FBL & %s & %s & %s & %s & %s \\\\\n', ...
-                            config_label, fbl_str{1}, fbl_str{2}, fbl_str{3}, fbl_str{4});
-                    fprintf(fid, 'PBC & & %s & %s & %s & %s \\\\\n', ...
-                            pbc_str{1}, pbc_str{2}, pbc_str{3}, pbc_str{4});
-                            
-                    % --- Print Winner Row (based on EE Max Error) ---
-                    ee_diff = fbl_m.ee_max_error_mm - pbc_m.ee_max_error_mm;
-                    if ee_diff > 0
-                        winner_text = sprintf('\\textcolor{bestcolor}{PBC}'); % PBC error is smaller
-                        ee_diff_abs = ee_diff;
-                    elseif ee_diff < 0
-                        winner_text = sprintf('\\textcolor{bestcolor}{FBL}'); % FBL error is smaller
-                        ee_diff_abs = -ee_diff;
+                    % Color the better values
+                    if fbl_m.joint_rms_error_rad < pbc_m.joint_rms_error_rad
+                        fbl_rms_rad_str = sprintf('\\textcolor{bestcolor}{%.4f}', fbl_m.joint_rms_error_rad);
+                        pbc_rms_rad_str = sprintf('%.4f', pbc_m.joint_rms_error_rad);
                     else
-                         winner_text = sprintf('Tie');
-                        ee_diff_abs = 0;
+                        fbl_rms_rad_str = sprintf('%.4f', fbl_m.joint_rms_error_rad);
+                        pbc_rms_rad_str = sprintf('\\textcolor{bestcolor}{%.4f}', pbc_m.joint_rms_error_rad);
                     end
                     
-                    fprintf(fid, '\\midrule\n');
-                    fprintf(fid, '\\multicolumn{6}{l}{\\textit{Winner: %s (EE Diff: %.2f mm)}} \\\\\n', winner_text, ee_diff_abs);
+                    if fbl_m.rms_joint_error_deg < pbc_m.rms_joint_error_deg
+                        fbl_rms_deg_str = sprintf('\\textcolor{bestcolor}{%.2f}', fbl_m.rms_joint_error_deg);
+                        pbc_rms_deg_str = sprintf('%.2f', pbc_m.rms_joint_error_deg);
+                    else
+                        fbl_rms_deg_str = sprintf('%.2f', fbl_m.rms_joint_error_deg);
+                        pbc_rms_deg_str = sprintf('\\textcolor{bestcolor}{%.2f}', pbc_m.rms_joint_error_deg);
+                    end
                     
-                    % Use \cmidrule for clear grouping
-                    if ~(cfg_idx == length(configs) && lbl_idx == length(labels))
-                        fprintf(fid, '\\cmidrule{1-6}\n'); % Horizontal line across all columns
+                    if fbl_m.ee_final_error_mm < pbc_m.ee_final_error_mm
+                        fbl_ee_str = sprintf('\\textcolor{bestcolor}{%.2f}', fbl_m.ee_final_error_mm);
+                        pbc_ee_str = sprintf('%.2f', pbc_m.ee_final_error_mm);
+                    else
+                        fbl_ee_str = sprintf('%.2f', fbl_m.ee_final_error_mm);
+                        pbc_ee_str = sprintf('\\textcolor{bestcolor}{%.2f}', pbc_m.ee_final_error_mm);
+                    end
+                    
+                    % Print rows
+                    if lbl_idx == 1
+                        fprintf(fid, '%s & FBL & %s & %s & %s & %s \\\\\n', ...
+                                traj_name, lbl, fbl_rms_rad_str, fbl_rms_deg_str, fbl_ee_str);
+                        fprintf(fid, ' & PBC & %s & %s & %s & %s \\\\\n', ...
+                                lbl, pbc_rms_rad_str, pbc_rms_deg_str, pbc_ee_str);
+                    else
+                        fprintf(fid, ' & FBL & %s & %s & %s & %s \\\\\n', ...
+                                lbl, fbl_rms_rad_str, fbl_rms_deg_str, fbl_ee_str);
+                        fprintf(fid, ' & PBC & %s & %s & %s & %s \\\\\n', ...
+                                lbl, pbc_rms_rad_str, pbc_rms_deg_str, pbc_ee_str);
                     end
                 end
+            end
+            
+            % Add separator between trajectories
+            if t_idx < length(trajectories)
+                fprintf(fid, '\\midrule\n');
             end
         end
         
         fprintf(fid, '\\bottomrule\n');
-        fprintf(fid, '\\end{longtable}\n\n');
+        fprintf(fid, '\\end{tabular}\n');
+        fprintf(fid, '\\end{table}\n\n');
     end
 end
 
-%% Section 4: Best and Worst Cases
+%% Section 5: Best and Worst Cases
 fprintf(fid, '\\section{Extreme Cases Analysis}\n\n');
 
 all_keys = fieldnames(results_database);
@@ -358,9 +454,9 @@ fprintf(fid, '  \\item Joint max error: %.2f deg\n', worst_metrics.max_joint_err
 fprintf(fid, '  \\item Joint RMS error: %.2f deg\n', worst_metrics.rms_joint_error_deg);
 fprintf(fid, '\\end{itemize}\n\n');
 
-%% Section 5: Head-to-head comparisons (FIXED WINNER STRING)
-fprintf(fid, '\\section{Direct Controller Comparisons}\n\n');
-fprintf(fid, 'This section presents head-to-head comparisons between FBL and PBC controllers under identical conditions, using the End-Effector Max Error [mm] metric. The better value is \\textcolor{bestcolor}{Green}. The configuration is abbreviated to *Profile/Unc/Match-Opt/traj*.\n\n');
+%% Section 6: Summary Table
+fprintf(fid, '\\section{Summary Comparison Table}\n\n');
+fprintf(fid, 'This section presents a condensed head-to-head comparison using End-Effector Max Error [mm]. The better value is \\textcolor{bestcolor}{Green}.\n\n');
 
 % Count wins
 fbl_wins = 0;
