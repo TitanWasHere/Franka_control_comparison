@@ -138,22 +138,28 @@ function process_and_save_results(config, t_sim, x_sim, sim_time)
     joint_names = {'Base (J1)', 'Shoulder (J2)', 'Elbow (J3)', 'Forearm (J4)', ...
                    'Wrist1 (J5)', 'Wrist2 (J6)', 'Wrist3 (J7)'};
     
-    % plot 1: joint position tracking (7 separate plots)
+    % plot 1: joint position tracking (all 7 joints in one figure, stacked vertically)
+    figure('Name', 'Joint Position Tracking', 'Position', [100 100 900 1200], 'Visible', 'off');
     for joint = 1:7
-        figure('Name', sprintf('Joint %d Tracking', joint), 'Position', [100 100 800 600], 'Visible', 'off');
-        plot(t_sim, rad2deg(q_desired(joint,:)), 'g--', 'LineWidth', 2.5, 'DisplayName', 'Desired');
+        subplot(7, 1, joint);
+        plot(t_sim, rad2deg(q_desired(joint,:)), 'r:', 'LineWidth', 1.5, 'DisplayName', 'q_{des}');
         hold on;
-        plot(t_sim, rad2deg(q_sim(joint,:)), 'b-', 'LineWidth', 2, 'DisplayName', 'Actual');
-        title(sprintf('Joint %d Position Tracking - %s', joint, joint_names{joint}));
-        xlabel('Time [s]'); ylabel('Angle [deg]');
-        legend('show', 'Location', 'best'); grid on;
-        annotation('textbox', [0.15, 0.8, 0.3, 0.1], 'String', ...
-                   sprintf('Max Error: %.2f°\nRMS Error: %.2f°', ...
-                   rad2deg(max_pos_error_per_joint(joint)), rad2deg(rms_pos_error_per_joint(joint))), ...
-                   'BackgroundColor', 'white');
-        saveas(gcf, fullfile(plot_dir, sprintf('joint_%d_tracking_%s.png', joint, traj_label)));
-        close(gcf);
+        plot(t_sim, rad2deg(q_sim(joint,:)), 'b-', 'LineWidth', 1.5, 'DisplayName', 'q');
+        ylabel('deg', 'FontSize', 9);
+        if joint == 1
+            title(sprintf('Joint Position Tracking - %s', joint_names{joint}), 'FontSize', 9);
+            legend('show', 'Location', 'northeast', 'FontSize', 8, 'Orientation', 'horizontal');
+        else
+            title(joint_names{joint}, 'FontSize', 9);
+        end
+        if joint == 7
+            xlabel('t', 'FontSize', 9);
+        end
+        grid on;
+        xlim([t_sim(1) t_sim(end)]);
     end
+    saveas(gcf, fullfile(plot_dir, sprintf('all_joints_tracking_%s.png', traj_label)));
+    close(gcf);
 
     % plot 2: end-effector tracking
     figure('Name', 'End-Effector Tracking', 'Position', [100 100 1200 800], 'Visible', 'off');
@@ -189,22 +195,22 @@ function process_and_save_results(config, t_sim, x_sim, sim_time)
     close(gcf);
 
     % plot 4: control torques
-    figure('Name', 'Control Torques', 'Position', [100 100 1400 800], 'Visible', 'off');
+    figure('Name', 'Control Torques', 'Position', [100 100 900 1200], 'Visible', 'off');
     for joint = 1:7
-        subplot(3, 3, joint);
-        plot(t_sim, tau_computed(:,joint), 'r-');
-        title(sprintf('Joint %d Torque - %s', joint, joint_names{joint}));
-        xlabel('Time [s]'); ylabel('Torque [Nm]'); grid on;
-        max_torque = max(abs(tau_computed(:,joint)));
-        rms_torque = sqrt(mean(tau_computed(:,joint).^2));
-        text(0.05, 0.95, sprintf('Max: %.1f Nm\nRMS: %.1f Nm', max_torque, rms_torque), ...
-             'Units', 'normalized', 'VerticalAlignment', 'top', 'BackgroundColor', 'white');
+        subplot(7, 1, joint);
+        plot(t_sim, tau_computed(:,joint), 'r-', 'LineWidth', 1.5);
+        ylabel('Nm', 'FontSize', 9);
+        if joint == 1
+            title(sprintf('Control Torques - %s', joint_names{joint}), 'FontSize', 9);
+        else
+            title(joint_names{joint}, 'FontSize', 9);
+        end
+        if joint == 7
+            xlabel('t', 'FontSize', 9);
+        end
+        grid on;
+        xlim([t_sim(1) t_sim(end)]);
     end
-    subplot(3,3,9);
-    torque_norm = sqrt(sum(tau_computed.^2, 2));
-    plot(t_sim, torque_norm, 'k-');
-    title(sprintf('Total Torque Norm\nMax: %.1f Nm, RMS: %.1f Nm', max(torque_norm), sqrt(mean(torque_norm.^2))));
-    xlabel('Time [s]'); ylabel('||τ|| [Nm]'); grid on;
     sgtitle('Control Torques for All Joints');
     saveas(gcf, fullfile(plot_dir, sprintf('control_torques_%s.png', traj_label)));
     close(gcf);

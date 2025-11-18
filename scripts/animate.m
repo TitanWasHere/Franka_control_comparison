@@ -3,12 +3,12 @@ clear; clc; close all;
 fprintf('=== ANIMAZIONE TRAIETTORIA (VISTA DOPPIA) ===\n\n');
 
 %% config params
-CONTROLLER = "PBC";
-TRAJ = 'B';
-MATCHED_START = false;
-OPTIMIZED_GAINS = false;
+CONTROLLER = "FBL";
+TRAJ = 'A';
+MATCHED_START = true;
+OPTIMIZED_GAINS = true;
 PROFILE = "quintic"; % "quintic", "bang_bang", "bang_coast_bang"
-UNCERTAINTY_LEVEL = "extreme"; % Options: "friction", "low", "mid", "high", "extreme"
+UNCERTAINTY_LEVEL = "high"; % Options: "extreme", "high"
 
 %% path setup
 try
