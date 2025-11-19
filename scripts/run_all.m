@@ -3,7 +3,7 @@ clear all; clc; close all;
 addpath("../lib/")
 
 uncertainties = ["high", "extreme"]; %["friction", "low", "mid", "high", "extreme"] 
-all_controller_types = ["FBL"]; %["FBL", "PBC"];
+all_controller_types = ["FBL", "PBC"]; %["FBL", "PBC"];
 all_trajectory_types = ["quintic", "bang_bang", "bang_coast_bang"];
 all_traj_labels = ['A', 'B'];
 optimized = [true, false];

@@ -242,6 +242,7 @@ function process_and_save_results(config, t_sim, x_sim, sim_time)
     results.simulation.q = q_sim;
     results.simulation.qd = qd_sim;
     results.simulation.ee_pos = ee_pos_sim;
+    results.simulation.tau = tau_computed';
     
     % desired trajectory data
     results.desired.q = q_desired;
