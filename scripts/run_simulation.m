@@ -2,12 +2,12 @@ clear; clc; close all;
 
 addpath("../lib/")
 
-config.controller_type = "PBC";
+config.controller_type = "FBL";
 config.trajectory_type = "quintic";
 config.traj_label      = 'A';
-config.matched_start   = true;
+config.matched_start   = false;
 config.optimized_gains = true;
-config.uncertainty_level = "extreme";  % Options: "friction", "low", "mid", "high", "extreme"
+config.uncertainty_level = "high";  % Options: "high", "extreme"
 config.T_final         = 8.0;
 
 [config, controller_gains, uncertain_params, true_params_vec, x0] = setup_simulation(config);

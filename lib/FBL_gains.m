@@ -7,8 +7,8 @@ function gains = FBL_gains(isOptimized)
 
     % founded those values by searching for better performance
     if isOptimized == true
-        Kp = diag([200, 200, 200, 200, 100, 100, 100]);
-        Kd = diag([30, 30, 30, 30, 20, 20, 20]);
+        Kp = diag([200, 300, 400, 750, 600, 1200, 700]);
+        Kd = diag([30, 50, 50, 80, 200, 600, 400]);
     end
     
     gains.Kp = Kp;
