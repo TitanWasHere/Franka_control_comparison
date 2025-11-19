@@ -142,10 +142,10 @@ function process_and_save_results(config, t_sim, x_sim, sim_time)
     figure('Name', 'Joint Position Tracking', 'Position', [100 100 900 1200], 'Visible', 'off');
     for joint = 1:7
         subplot(7, 1, joint);
-        plot(t_sim, rad2deg(q_desired(joint,:)), 'r:', 'LineWidth', 1.5, 'DisplayName', 'q_{des}');
+        plot(t_sim, q_desired(joint,:), 'r:', 'LineWidth', 1.5, 'DisplayName', 'q_{des}');
         hold on;
-        plot(t_sim, rad2deg(q_sim(joint,:)), 'b-', 'LineWidth', 1.5, 'DisplayName', 'q');
-        ylabel('deg', 'FontSize', 9);
+        plot(t_sim, q_sim(joint,:), 'b-', 'LineWidth', 1.5, 'DisplayName', 'q');
+        ylabel('rad', 'FontSize', 9);
         if joint == 1
             title(sprintf('Joint Position Tracking - %s', joint_names{joint}), 'FontSize', 9);
             legend('show', 'Location', 'northeast', 'FontSize', 8, 'Orientation', 'horizontal');
@@ -157,6 +157,13 @@ function process_and_save_results(config, t_sim, x_sim, sim_time)
         end
         grid on;
         xlim([t_sim(1) t_sim(end)]);
+        
+        % Set ylim to [-1, 1] if the data range is in the order of 10^-2 or smaller
+        all_values = [q_desired(joint,:), q_sim(joint,:)];
+        data_range = max(abs(all_values));
+        if data_range <= 0.01
+            ylim([-0.5, 0.5]);
+        end
     end
     saveas(gcf, fullfile(plot_dir, sprintf('all_joints_tracking_%s.png', traj_label)));
     close(gcf);

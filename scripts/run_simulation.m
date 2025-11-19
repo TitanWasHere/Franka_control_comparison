@@ -4,8 +4,8 @@ addpath("../lib/")
 
 config.controller_type = "PBC";
 config.trajectory_type = "quintic";
-config.traj_label      = 'B';
-config.matched_start   = false;
+config.traj_label      = 'A';
+config.matched_start   = true;
 config.optimized_gains = true;
 config.uncertainty_level = "extreme";  % Options: "friction", "low", "mid", "high", "extreme"
 config.T_final         = 8.0;

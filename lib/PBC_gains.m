@@ -7,8 +7,8 @@ function gains = PBC_gains(isOptimized)
 
     % optimized gains
     if isOptimized == true
-        Kp = diag([120, 120, 120, 120, 60, 60, 60]);
-        Kd = diag([ 50,  50,  50,  50, 30, 30, 30]);
+        Kp = diag([120, 250, 120, 300, 250, 200, 60]);
+        Kd = diag([ 50,  60,  50,  20, 80, 20, 30]);
     end
     
     gains.Kp = Kp;
