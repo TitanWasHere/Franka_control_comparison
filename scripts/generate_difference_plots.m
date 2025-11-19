@@ -139,11 +139,15 @@ for u_idx = 1:length(uncertainty_levels)
                         %% PLOT 1: Joint Position Comparison
                         t_sim = t_common;
                         
+                        % Interpolate desired trajectories to common time grid
+                        q_des_fbl_interp = interp1(t_fbl, fbl.desired.q', t_common, 'linear')';  % 7 x N
+                        
                         figure('Name', 'Joint Position Comparison', 'Position', [100 100 900 1200], 'Visible', 'off');
                         for joint = 1:7
                             subplot(7, 1, joint);
-                            plot(t_sim, q_fbl_interp(joint,:), 'r-', 'LineWidth', 1.5, 'DisplayName', 'FBL');
+                            plot(t_sim, q_des_fbl_interp(joint,:), 'g--', 'LineWidth', 1.5, 'DisplayName', 'Desired');
                             hold on;
+                            plot(t_sim, q_fbl_interp(joint,:), 'r-', 'LineWidth', 1.5, 'DisplayName', 'FBL');
                             plot(t_sim, q_pbc_interp(joint,:), 'b-', 'LineWidth', 1.5, 'DisplayName', 'PBC');
                             ylabel('rad', 'FontSize', 9);
                             if joint == 1
@@ -165,12 +169,17 @@ for u_idx = 1:length(uncertainty_levels)
                         ee_fbl_mm = ee_fbl_interp * 1000;  % 3 x N, in mm
                         ee_pbc_mm = ee_pbc_interp * 1000;  % 3 x N, in mm
                         
+                        % Interpolate desired EE trajectory to common time grid
+                        ee_des_interp = interp1(t_fbl, fbl.desired.ee_pos', t_common, 'linear')';  % 3 x N
+                        ee_des_mm = ee_des_interp * 1000;  % in mm
+                        
                         figure('Name', 'End-Effector Comparison', 'Position', [100 100 1200 800], 'Visible', 'off');
                         
                         % 3D trajectories comparison
                         subplot(2, 2, 1);
-                        plot3(ee_fbl_mm(1,:), ee_fbl_mm(2,:), ee_fbl_mm(3,:), 'r-', 'LineWidth', 2, 'DisplayName', 'FBL');
+                        plot3(ee_des_mm(1,:), ee_des_mm(2,:), ee_des_mm(3,:), 'g--', 'LineWidth', 2, 'DisplayName', 'Desired');
                         hold on;
+                        plot3(ee_fbl_mm(1,:), ee_fbl_mm(2,:), ee_fbl_mm(3,:), 'r-', 'LineWidth', 2, 'DisplayName', 'FBL');
                         plot3(ee_pbc_mm(1,:), ee_pbc_mm(2,:), ee_pbc_mm(3,:), 'b-', 'LineWidth', 2, 'DisplayName', 'PBC');
                         title('EE Position Comparison');
                         xlabel('X [mm]'); ylabel('Y [mm]'); zlabel('Z [mm]');
@@ -178,20 +187,23 @@ for u_idx = 1:length(uncertainty_levels)
                         
                         % X, Y, Z components comparison
                         subplot(2, 2, 2);
-                        plot(t_sim, ee_fbl_mm(1,:), 'r-', 'LineWidth', 1.5, 'DisplayName', 'FBL');
+                        plot(t_sim, ee_des_mm(1,:), 'g--', 'LineWidth', 1.5, 'DisplayName', 'Desired');
                         hold on;
+                        plot(t_sim, ee_fbl_mm(1,:), 'r-', 'LineWidth', 1.5, 'DisplayName', 'FBL');
                         plot(t_sim, ee_pbc_mm(1,:), 'b-', 'LineWidth', 1.5, 'DisplayName', 'PBC');
                         title('X Position'); xlabel('Time [s]'); ylabel('X [mm]'); legend('show'); grid on;
                         
                         subplot(2, 2, 3);
-                        plot(t_sim, ee_fbl_mm(2,:), 'r-', 'LineWidth', 1.5, 'DisplayName', 'FBL');
+                        plot(t_sim, ee_des_mm(2,:), 'g--', 'LineWidth', 1.5, 'DisplayName', 'Desired');
                         hold on;
+                        plot(t_sim, ee_fbl_mm(2,:), 'r-', 'LineWidth', 1.5, 'DisplayName', 'FBL');
                         plot(t_sim, ee_pbc_mm(2,:), 'b-', 'LineWidth', 1.5, 'DisplayName', 'PBC');
                         title('Y Position'); xlabel('Time [s]'); ylabel('Y [mm]'); legend('show'); grid on;
                         
                         subplot(2, 2, 4);
-                        plot(t_sim, ee_fbl_mm(3,:), 'r-', 'LineWidth', 1.5, 'DisplayName', 'FBL');
+                        plot(t_sim, ee_des_mm(3,:), 'g--', 'LineWidth', 1.5, 'DisplayName', 'Desired');
                         hold on;
+                        plot(t_sim, ee_fbl_mm(3,:), 'r-', 'LineWidth', 1.5, 'DisplayName', 'FBL');
                         plot(t_sim, ee_pbc_mm(3,:), 'b-', 'LineWidth', 1.5, 'DisplayName', 'PBC');
                         title('Z Position'); xlabel('Time [s]'); ylabel('Z [mm]'); legend('show'); grid on;
                         
