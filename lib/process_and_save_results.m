@@ -138,88 +138,137 @@ function process_and_save_results(config, t_sim, x_sim, sim_time)
     joint_names = {'Base (J1)', 'Shoulder (J2)', 'Elbow (J3)', 'Forearm (J4)', ...
                    'Wrist1 (J5)', 'Wrist2 (J6)', 'Wrist3 (J7)'};
     
+    % Common style settings for paper-quality plots
+    width_cm = 8.8;
+    height_cm = 6;
+    font_size = 10;
+    line_width = 1.2;
+
     % plot 1: joint position tracking (all 7 joints in one figure, stacked vertically)
-    figure('Name', 'Joint Position Tracking', 'Position', [100 100 900 1200], 'Visible', 'off');
+    % This one needs to be taller to fit 7 subplots
+    figure('Units', 'centimeters', 'Position', [5 5 width_cm 16], ...
+           'PaperUnits', 'centimeters', 'PaperPosition', [0 0 width_cm 16], ...
+           'PaperSize', [width_cm 16], 'Visible', 'off');
+           
     for joint = 1:7
         subplot(7, 1, joint);
-        plot(t_sim, q_desired(joint,:), 'r:', 'LineWidth', 1.5, 'DisplayName', 'q_{des}');
         hold on;
-        plot(t_sim, q_sim(joint,:), 'b-', 'LineWidth', 1.5, 'DisplayName', 'q');
-        ylabel('rad', 'FontSize', 9);
+        plot(t_sim, q_desired(joint,:), 'r:', 'LineWidth', line_width);
+        plot(t_sim, q_sim(joint,:), 'b-', 'LineWidth', line_width);
+        
+        grid on; box on;
+        set(gca, 'FontSize', font_size, 'FontName', 'Times New Roman', 'LineWidth', 0.8);
+        
+        ylabel('rad', 'FontSize', font_size);
         if joint == 1
-            title(sprintf('Joint Position Tracking - %s', joint_names{joint}), 'FontSize', 9);
-            legend('show', 'Location', 'northeast', 'FontSize', 8, 'Orientation', 'horizontal');
-        else
-            title(joint_names{joint}, 'FontSize', 9);
+            title('Joint Tracking', 'FontSize', font_size+1);
+            lgd = legend({'Ref', 'Act'}, 'Location', 'best', 'FontSize', font_size-2);
+            lgd.ItemTokenSize = [10, 10];
         end
         if joint == 7
-            xlabel('t', 'FontSize', 9);
+            xlabel('Time [s]', 'FontSize', font_size);
         end
-        grid on;
         xlim([t_sim(1) t_sim(end)]);
         
-        % Set ylim to [-1, 1] if the data range is in the order of 10^-2 or smaller
+        % Set ylim to [-0.5, 0.5] if the data range is very small
         all_values = [q_desired(joint,:), q_sim(joint,:)];
         data_range = max(abs(all_values));
         if data_range <= 0.01
             ylim([-0.5, 0.5]);
         end
     end
-    saveas(gcf, fullfile(plot_dir, sprintf('all_joints_tracking_%s.png', traj_label)));
+    exportgraphics(gcf, fullfile(plot_dir, sprintf('all_joints_tracking_%s.png', traj_label)), 'Resolution', 300);
     close(gcf);
 
-    % plot 2: end-effector tracking
-    figure('Name', 'End-Effector Tracking', 'Position', [100 100 1200 800], 'Visible', 'off');
+    % plot 2: end-effector tracking (3D)
+    figure('Units', 'centimeters', 'Position', [5 5 12 9], ...
+           'PaperUnits', 'centimeters', 'PaperPosition', [0 0 12 9], ...
+           'PaperSize', [12 9], 'Visible', 'off');
+           
     subplot(2, 2, 1);
-    plot3(ee_pos_des(1,:), ee_pos_des(2,:), ee_pos_des(3,:), 'g--', 'LineWidth', 3, 'DisplayName', 'Desired');
     hold on;
-    plot3(ee_pos_sim(1,:), ee_pos_sim(2,:), ee_pos_sim(3,:), 'b-', 'LineWidth', 2, 'DisplayName', 'Actual');
-    plot3(ee_pos_sim(1,1), ee_pos_sim(2,1), ee_pos_sim(3,1), 'go', 'MarkerSize', 8, 'MarkerFaceColor', 'g', 'DisplayName', 'Start');
-    plot3(ee_pos_sim(1,end), ee_pos_sim(2,end), ee_pos_sim(3,end), 'ro', 'MarkerSize', 8, 'MarkerFaceColor', 'r', 'DisplayName', 'End');
-    title('End-Effector 3D Trajectory'); xlabel('X [m]'); ylabel('Y [m]'); zlabel('Z [m]');
-    legend('show'); grid on; axis equal;
+    plot3(ee_pos_des(1,:), ee_pos_des(2,:), ee_pos_des(3,:), 'g--', 'LineWidth', line_width);
+    plot3(ee_pos_sim(1,:), ee_pos_sim(2,:), ee_pos_sim(3,:), 'b-', 'LineWidth', line_width);
+    plot3(ee_pos_sim(1,1), ee_pos_sim(2,1), ee_pos_sim(3,1), 'go', 'MarkerSize', 6, 'MarkerFaceColor', 'g');
+    plot3(ee_pos_sim(1,end), ee_pos_sim(2,end), ee_pos_sim(3,end), 'ro', 'MarkerSize', 6, 'MarkerFaceColor', 'r');
+    grid on; box on; axis equal; view(3);
+    set(gca, 'FontSize', font_size-1, 'FontName', 'Times New Roman');
+    
+    xl = xlim; yl = ylim; zl = zlim;
+    xticks(linspace(xl(1), xl(2), 3)); xtickformat('%.2f');
+    yticks(linspace(yl(1), yl(2), 3)); ytickformat('%.2f');
+    zticks(linspace(zl(1), zl(2), 3)); ztickformat('%.2f');
+    
+    title('3D Path', 'FontSize', font_size);
+    xlabel('X [m]'); ylabel('Y [m]'); zlabel('Z [m]');
+    
     % X, Y, Z components
-    subplot(2, 2, 2); plot(t_sim, ee_pos_des(1,:), 'g--'); hold on; plot(t_sim, ee_pos_sim(1,:), 'b-'); title('X Position'); grid on;
-    subplot(2, 2, 3); plot(t_sim, ee_pos_des(2,:), 'g--'); hold on; plot(t_sim, ee_pos_sim(2,:), 'b-'); title('Y Position'); grid on;
-    subplot(2, 2, 4); plot(t_sim, ee_pos_des(3,:), 'g--'); hold on; plot(t_sim, ee_pos_sim(3,:), 'b-'); title('Z Position'); grid on;
-    sgtitle(sprintf('End-Effector Tracking (Max Error: %.2f mm, RMS: %.2f mm)', max_ee_error, rms_ee_error));
-    saveas(gcf, fullfile(plot_dir, sprintf('end_effector_tracking_%s.png', traj_label)));
+    subplot(2, 2, 2); 
+    hold on; plot(t_sim, ee_pos_des(1,:), 'g--'); plot(t_sim, ee_pos_sim(1,:), 'b-'); 
+    grid on; box on; set(gca, 'FontSize', font_size-1, 'FontName', 'Times New Roman');
+    title('X Pos', 'FontSize', font_size);
+    
+    subplot(2, 2, 3); 
+    hold on; plot(t_sim, ee_pos_des(2,:), 'g--'); plot(t_sim, ee_pos_sim(2,:), 'b-'); 
+    grid on; box on; set(gca, 'FontSize', font_size-1, 'FontName', 'Times New Roman');
+    title('Y Pos', 'FontSize', font_size);
+    
+    subplot(2, 2, 4); 
+    hold on; plot(t_sim, ee_pos_des(3,:), 'g--'); plot(t_sim, ee_pos_sim(3,:), 'b-'); 
+    grid on; box on; set(gca, 'FontSize', font_size-1, 'FontName', 'Times New Roman');
+    title('Z Pos', 'FontSize', font_size);
+    
+    exportgraphics(gcf, fullfile(plot_dir, sprintf('end_effector_tracking_%s.png', traj_label)), 'Resolution', 300);
     close(gcf);
 
-    % plot 3: tracking errors
-    figure('Name', 'Tracking Errors', 'Position', [100 100 1200 600], 'Visible', 'off');
-    subplot(1, 2, 1);
-    plot(t_sim, sqrt(sum(e_pos.^2, 1))*1000, 'r-');
-    title(sprintf('Total Position Error\nMax: %.2f mrad, RMS: %.2f mrad', ...
-                  max(sqrt(sum(e_pos.^2, 1)))*1000, sqrt(mean(sum(e_pos.^2, 1)))*1000));
-    xlabel('Time [s]'); ylabel('Position Error ||e|| [mrad]'); grid on;
-    subplot(1, 2, 2);
-    plot(t_sim, sqrt(sum(e_vel.^2, 1))*1000, 'b-');
-    title(sprintf('Total Velocity Error\nMax: %.2f mrad/s, RMS: %.2f mrad/s', ...
-                  max(sqrt(sum(e_vel.^2, 1)))*1000, sqrt(mean(sum(e_vel.^2, 1)))*1000));
-    xlabel('Time [s]'); ylabel('Velocity Error ||ė|| [mrad/s]'); grid on;
-    saveas(gcf, fullfile(plot_dir, sprintf('position_velocity_errors_%s.png', traj_label)));
+    % plot 3: tracking errors (Norms)
+    figure('Units', 'centimeters', 'Position', [5 5 width_cm height_cm], ...
+           'PaperUnits', 'centimeters', 'PaperPosition', [0 0 width_cm height_cm], ...
+           'PaperSize', [width_cm height_cm], 'Visible', 'off');
+           
+    hold on;
+    % Plot position error on left axis
+    yyaxis left
+    plot(t_sim, sqrt(sum(e_pos.^2, 1))*1000, 'r-', 'LineWidth', line_width);
+    ylabel('Pos Error ||e|| [mrad]', 'FontSize', font_size);
+    set(gca, 'YColor', 'r');
+    
+    % Plot velocity error on right axis
+    yyaxis right
+    plot(t_sim, sqrt(sum(e_vel.^2, 1))*1000, 'b--', 'LineWidth', line_width);
+    ylabel('Vel Error ||e_v|| [mrad/s]', 'FontSize', font_size);
+    set(gca, 'YColor', 'b');
+    
+    grid on; box on;
+    set(gca, 'FontSize', font_size, 'FontName', 'Times New Roman', 'LineWidth', 0.8);
+    xlabel('Time [s]', 'FontSize', font_size);
+    title('Total Tracking Errors', 'FontSize', font_size+1);
+    
+    exportgraphics(gcf, fullfile(plot_dir, sprintf('position_velocity_errors_%s.png', traj_label)), 'Resolution', 300);
     close(gcf);
 
     % plot 4: control torques
-    figure('Name', 'Control Torques', 'Position', [100 100 900 1200], 'Visible', 'off');
+    % Taller figure for 7 subplots
+    figure('Units', 'centimeters', 'Position', [5 5 width_cm 16], ...
+           'PaperUnits', 'centimeters', 'PaperPosition', [0 0 width_cm 16], ...
+           'PaperSize', [width_cm 16], 'Visible', 'off');
+           
     for joint = 1:7
         subplot(7, 1, joint);
-        plot(t_sim, tau_computed(:,joint), 'r-', 'LineWidth', 1.5);
-        ylabel('Nm', 'FontSize', 9);
+        hold on;
+        plot(t_sim, tau_computed(:,joint), 'r-', 'LineWidth', line_width);
+        grid on; box on;
+        set(gca, 'FontSize', font_size, 'FontName', 'Times New Roman', 'LineWidth', 0.8);
+        ylabel('Nm', 'FontSize', font_size);
         if joint == 1
-            title(sprintf('Control Torques - %s', joint_names{joint}), 'FontSize', 9);
-        else
-            title(joint_names{joint}, 'FontSize', 9);
+            title('Control Torques', 'FontSize', font_size+1);
         end
         if joint == 7
-            xlabel('t', 'FontSize', 9);
+            xlabel('Time [s]', 'FontSize', font_size);
         end
-        grid on;
         xlim([t_sim(1) t_sim(end)]);
     end
-    sgtitle('Control Torques for All Joints');
-    saveas(gcf, fullfile(plot_dir, sprintf('control_torques_%s.png', traj_label)));
+    exportgraphics(gcf, fullfile(plot_dir, sprintf('control_torques_%s.png', traj_label)), 'Resolution', 300);
     close(gcf);
 
     fprintf('Plots saved.\n');
