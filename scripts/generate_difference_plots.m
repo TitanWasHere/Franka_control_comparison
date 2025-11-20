@@ -30,7 +30,7 @@ uncertainty_levels = {'high', 'extreme'};
 conditions = {'matched', 'mismatched'};
 optimizations = {'optimized', 'unoptimized'};
 trajectories = {'quintic', 'bang_bang', 'bang_coast_bang'};
-trajectory_prefixes = {'quintic', 'bb', 'bcb'};  % File name prefixes
+trajectory_prefixes = {'quintic', 'bb', 'bcb'}; 
 labels = {'A', 'B'};
 
 joint_names = {'Base (J1)', 'Shoulder (J2)', 'Elbow (J3)', 'Forearm (J4)', ...
@@ -142,27 +142,37 @@ for u_idx = 1:length(uncertainty_levels)
                         % Interpolate desired trajectories to common time grid
                         q_des_fbl_interp = interp1(t_fbl, fbl.desired.q', t_common, 'linear')';  % 7 x N
                         
-                        figure('Name', 'Joint Position Comparison', 'Position', [100 100 900 1200], 'Visible', 'off');
+                        % Paper-quality settings
+                        width_cm = 8.8;
+                        font_size = 10;
+                        line_width = 1.2;
+                        
+                        figure('Units', 'centimeters', 'Position', [5 5 width_cm 16], ...
+                               'PaperUnits', 'centimeters', 'PaperPosition', [0 0 width_cm 16], ...
+                               'PaperSize', [width_cm 16], 'Visible', 'off');
+                               
                         for joint = 1:7
                             subplot(7, 1, joint);
-                            plot(t_sim, q_des_fbl_interp(joint,:), 'g--', 'LineWidth', 1.5, 'DisplayName', 'Desired');
                             hold on;
-                            plot(t_sim, q_fbl_interp(joint,:), 'r-', 'LineWidth', 1.5, 'DisplayName', 'FBL');
-                            plot(t_sim, q_pbc_interp(joint,:), 'b-', 'LineWidth', 1.5, 'DisplayName', 'PBC');
-                            ylabel('rad', 'FontSize', 9);
+                            plot(t_sim, q_des_fbl_interp(joint,:), 'g--', 'LineWidth', line_width);
+                            plot(t_sim, q_fbl_interp(joint,:), 'r-', 'LineWidth', line_width);
+                            plot(t_sim, q_pbc_interp(joint,:), 'b-', 'LineWidth', line_width);
+                            
+                            grid on; box on;
+                            set(gca, 'FontSize', font_size, 'FontName', 'Times New Roman', 'LineWidth', 0.8);
+                            
+                            ylabel('rad', 'FontSize', font_size);
                             if joint == 1
-                                title(sprintf('Joint Position Comparison - %s', joint_names{joint}), 'FontSize', 9);
-                                legend('show', 'Location', 'northeast', 'FontSize', 8, 'Orientation', 'horizontal');
-                            else
-                                title(joint_names{joint}, 'FontSize', 9);
+                                title('Joint Position Comparison', 'FontSize', font_size+1);
+                                lgd = legend({'Ref', 'FBL', 'PBC'}, 'Location', 'best', 'FontSize', font_size-2);
+                                lgd.ItemTokenSize = [10, 10];
                             end
                             if joint == 7
-                                xlabel('t [s]', 'FontSize', 9);
+                                xlabel('Time [s]', 'FontSize', font_size);
                             end
-                            grid on;
                             xlim([t_sim(1) t_sim(end)]);
                         end
-                        saveas(gcf, fullfile(output_dir, sprintf('joint_comparison_%s.png', lbl)));
+                        exportgraphics(gcf, fullfile(output_dir, sprintf('joint_comparison_%s.png', lbl)), 'Resolution', 300);
                         close(gcf);
                         
                         %% PLOT 2: End-Effector Position Comparison
@@ -173,42 +183,56 @@ for u_idx = 1:length(uncertainty_levels)
                         ee_des_interp = interp1(t_fbl, fbl.desired.ee_pos', t_common, 'linear')';  % 3 x N
                         ee_des_mm = ee_des_interp * 1000;  % in mm
                         
-                        figure('Name', 'End-Effector Comparison', 'Position', [100 100 1200 800], 'Visible', 'off');
+                        figure('Units', 'centimeters', 'Position', [5 5 12 9], ...
+                               'PaperUnits', 'centimeters', 'PaperPosition', [0 0 12 9], ...
+                               'PaperSize', [12 9], 'Visible', 'off');
                         
                         % 3D trajectories comparison
                         subplot(2, 2, 1);
-                        plot3(ee_des_mm(1,:), ee_des_mm(2,:), ee_des_mm(3,:), 'g--', 'LineWidth', 2, 'DisplayName', 'Desired');
                         hold on;
-                        plot3(ee_fbl_mm(1,:), ee_fbl_mm(2,:), ee_fbl_mm(3,:), 'r-', 'LineWidth', 2, 'DisplayName', 'FBL');
-                        plot3(ee_pbc_mm(1,:), ee_pbc_mm(2,:), ee_pbc_mm(3,:), 'b-', 'LineWidth', 2, 'DisplayName', 'PBC');
-                        title('EE Position Comparison');
+                        plot3(ee_des_mm(1,:), ee_des_mm(2,:), ee_des_mm(3,:), 'g--', 'LineWidth', line_width);
+                        plot3(ee_fbl_mm(1,:), ee_fbl_mm(2,:), ee_fbl_mm(3,:), 'r-', 'LineWidth', line_width);
+                        plot3(ee_pbc_mm(1,:), ee_pbc_mm(2,:), ee_pbc_mm(3,:), 'b-', 'LineWidth', line_width);
+                        plot3(ee_fbl_mm(1,1), ee_fbl_mm(2,1), ee_fbl_mm(3,1), 'go', 'MarkerSize', 6, 'MarkerFaceColor', 'g');
+                        plot3(ee_fbl_mm(1,end), ee_fbl_mm(2,end), ee_fbl_mm(3,end), 'ro', 'MarkerSize', 6, 'MarkerFaceColor', 'r');
+                        
+                        grid on; box on; axis equal; view(3);
+                        set(gca, 'FontSize', font_size-1, 'FontName', 'Times New Roman');
+                        title('3D Path', 'FontSize', font_size);
                         xlabel('X [mm]'); ylabel('Y [mm]'); zlabel('Z [mm]');
-                        legend('show'); grid on; axis equal;
                         
                         % X, Y, Z components comparison
                         subplot(2, 2, 2);
-                        plot(t_sim, ee_des_mm(1,:), 'g--', 'LineWidth', 1.5, 'DisplayName', 'Desired');
                         hold on;
-                        plot(t_sim, ee_fbl_mm(1,:), 'r-', 'LineWidth', 1.5, 'DisplayName', 'FBL');
-                        plot(t_sim, ee_pbc_mm(1,:), 'b-', 'LineWidth', 1.5, 'DisplayName', 'PBC');
-                        title('X Position'); xlabel('Time [s]'); ylabel('X [mm]'); legend('show'); grid on;
+                        plot(t_sim, ee_des_mm(1,:), 'g--', 'LineWidth', line_width);
+                        plot(t_sim, ee_fbl_mm(1,:), 'r-', 'LineWidth', line_width);
+                        plot(t_sim, ee_pbc_mm(1,:), 'b-', 'LineWidth', line_width);
+                        grid on; box on;
+                        set(gca, 'FontSize', font_size-1, 'FontName', 'Times New Roman');
+                        title('X Pos', 'FontSize', font_size);
+                        xlabel('Time [s]'); ylabel('X [mm]');
                         
                         subplot(2, 2, 3);
-                        plot(t_sim, ee_des_mm(2,:), 'g--', 'LineWidth', 1.5, 'DisplayName', 'Desired');
                         hold on;
-                        plot(t_sim, ee_fbl_mm(2,:), 'r-', 'LineWidth', 1.5, 'DisplayName', 'FBL');
-                        plot(t_sim, ee_pbc_mm(2,:), 'b-', 'LineWidth', 1.5, 'DisplayName', 'PBC');
-                        title('Y Position'); xlabel('Time [s]'); ylabel('Y [mm]'); legend('show'); grid on;
+                        plot(t_sim, ee_des_mm(2,:), 'g--', 'LineWidth', line_width);
+                        plot(t_sim, ee_fbl_mm(2,:), 'r-', 'LineWidth', line_width);
+                        plot(t_sim, ee_pbc_mm(2,:), 'b-', 'LineWidth', line_width);
+                        grid on; box on;
+                        set(gca, 'FontSize', font_size-1, 'FontName', 'Times New Roman');
+                        title('Y Pos', 'FontSize', font_size);
+                        xlabel('Time [s]'); ylabel('Y [mm]');
                         
                         subplot(2, 2, 4);
-                        plot(t_sim, ee_des_mm(3,:), 'g--', 'LineWidth', 1.5, 'DisplayName', 'Desired');
                         hold on;
-                        plot(t_sim, ee_fbl_mm(3,:), 'r-', 'LineWidth', 1.5, 'DisplayName', 'FBL');
-                        plot(t_sim, ee_pbc_mm(3,:), 'b-', 'LineWidth', 1.5, 'DisplayName', 'PBC');
-                        title('Z Position'); xlabel('Time [s]'); ylabel('Z [mm]'); legend('show'); grid on;
+                        plot(t_sim, ee_des_mm(3,:), 'g--', 'LineWidth', line_width);
+                        plot(t_sim, ee_fbl_mm(3,:), 'r-', 'LineWidth', line_width);
+                        plot(t_sim, ee_pbc_mm(3,:), 'b-', 'LineWidth', line_width);
+                        grid on; box on;
+                        set(gca, 'FontSize', font_size-1, 'FontName', 'Times New Roman');
+                        title('Z Pos', 'FontSize', font_size);
+                        xlabel('Time [s]'); ylabel('Z [mm]');
                         
-                        sgtitle('End-Effector Position Comparison (FBL vs PBC)');
-                        saveas(gcf, fullfile(output_dir, sprintf('ee_comparison_%s.png', lbl)));
+                        exportgraphics(gcf, fullfile(output_dir, sprintf('ee_comparison_%s.png', lbl)), 'Resolution', 300);
                         close(gcf);
                         
                         %% PLOT 3: Tracking Error Comparison
@@ -223,27 +247,34 @@ for u_idx = 1:length(uncertainty_levels)
                         fbl_vel_error_interp = interp1(t_fbl, fbl_vel_error_norm, t_common, 'linear');
                         pbc_vel_error_interp = interp1(t_pbc, pbc_vel_error_norm, t_common, 'linear');
                         
-                        figure('Name', 'Tracking Error Comparison', 'Position', [100 100 1200 600], 'Visible', 'off');
+                        height_cm = 6;
+                        figure('Units', 'centimeters', 'Position', [5 5 width_cm height_cm], ...
+                               'PaperUnits', 'centimeters', 'PaperPosition', [0 0 width_cm height_cm], ...
+                               'PaperSize', [width_cm height_cm], 'Visible', 'off');
                         
-                        subplot(1, 2, 1);
-                        plot(t_sim, fbl_pos_error_interp * 1000, 'r-', 'LineWidth', 1.5, 'DisplayName', 'FBL');
                         hold on;
-                        plot(t_sim, pbc_pos_error_interp * 1000, 'b-', 'LineWidth', 1.5, 'DisplayName', 'PBC');
-                        title('Position Error Comparison');
-                        xlabel('Time [s]'); ylabel('||e|| [mrad]'); 
-                        legend('show', 'Location', 'best');
-                        grid on;
+                        % Plot position error on left axis
+                        yyaxis left
+                        plot(t_sim, fbl_pos_error_interp * 1000, 'r-', 'LineWidth', line_width);
+                        plot(t_sim, pbc_pos_error_interp * 1000, 'r--', 'LineWidth', line_width);
+                        ylabel('Pos Error ||e|| [mrad]', 'FontSize', font_size);
+                        set(gca, 'YColor', 'r');
                         
-                        subplot(1, 2, 2);
-                        plot(t_sim, fbl_vel_error_interp * 1000, 'r-', 'LineWidth', 1.5, 'DisplayName', 'FBL');
-                        hold on;
-                        plot(t_sim, pbc_vel_error_interp * 1000, 'b-', 'LineWidth', 1.5, 'DisplayName', 'PBC');
-                        title('Velocity Error Comparison');
-                        xlabel('Time [s]'); ylabel('||ė|| [mrad/s]'); 
-                        legend('show', 'Location', 'best');
-                        grid on;
+                        % Plot velocity error on right axis
+                        yyaxis right
+                        plot(t_sim, fbl_vel_error_interp * 1000, 'b-', 'LineWidth', line_width);
+                        plot(t_sim, pbc_vel_error_interp * 1000, 'b--', 'LineWidth', line_width);
+                        ylabel('Vel Error ||e_v|| [mrad/s]', 'FontSize', font_size);
+                        set(gca, 'YColor', 'b');
                         
-                        saveas(gcf, fullfile(output_dir, sprintf('error_comparison_%s.png', lbl)));
+                        grid on; box on;
+                        set(gca, 'FontSize', font_size, 'FontName', 'Times New Roman', 'LineWidth', 0.8);
+                        xlabel('Time [s]', 'FontSize', font_size);
+                        title('Tracking Errors Comparison', 'FontSize', font_size+1);
+                        lgd = legend({'FBL Pos', 'PBC Pos', 'FBL Vel', 'PBC Vel'}, 'Location', 'best', 'FontSize', font_size-2);
+                        lgd.ItemTokenSize = [10, 10];
+                        
+                        exportgraphics(gcf, fullfile(output_dir, sprintf('error_comparison_%s.png', lbl)), 'Resolution', 300);
                         close(gcf);
                         
                         %% PLOT 4: Control Torque Comparison
@@ -253,61 +284,72 @@ for u_idx = 1:length(uncertainty_levels)
                             tau_fbl_interp = interp1(t_fbl, fbl.simulation.tau', t_common, 'linear')';  % 7 x N
                             tau_pbc_interp = interp1(t_pbc, pbc.simulation.tau', t_common, 'linear')';  % 7 x N
                             
-                            figure('Name', 'Control Torque Comparison', 'Position', [100 100 900 1200], 'Visible', 'off');
+                            figure('Units', 'centimeters', 'Position', [5 5 width_cm 16], ...
+                                   'PaperUnits', 'centimeters', 'PaperPosition', [0 0 width_cm 16], ...
+                                   'PaperSize', [width_cm 16], 'Visible', 'off');
+                            
                             for joint = 1:7
                                 subplot(7, 1, joint);
-                                plot(t_common, tau_fbl_interp(joint,:), 'r-', 'LineWidth', 1.5, 'DisplayName', 'FBL');
                                 hold on;
-                                plot(t_common, tau_pbc_interp(joint,:), 'b-', 'LineWidth', 1.5, 'DisplayName', 'PBC');
-                                ylabel('Nm', 'FontSize', 9);
+                                plot(t_common, tau_fbl_interp(joint,:), 'r-', 'LineWidth', line_width);
+                                plot(t_common, tau_pbc_interp(joint,:), 'b-', 'LineWidth', line_width);
+                                
+                                grid on; box on;
+                                set(gca, 'FontSize', font_size, 'FontName', 'Times New Roman', 'LineWidth', 0.8);
+                                
+                                ylabel('Nm', 'FontSize', font_size);
                                 if joint == 1
-                                    title(sprintf('Control Torque Comparison - %s', joint_names{joint}), 'FontSize', 9);
-                                    legend('show', 'Location', 'northeast', 'FontSize', 8, 'Orientation', 'horizontal');
-                                else
-                                    title(joint_names{joint}, 'FontSize', 9);
+                                    title('Control Torques Comparison', 'FontSize', font_size+1);
+                                    lgd = legend({'FBL', 'PBC'}, 'Location', 'best', 'FontSize', font_size-2);
+                                    lgd.ItemTokenSize = [10, 10];
                                 end
                                 if joint == 7
-                                    xlabel('t [s]', 'FontSize', 9);
+                                    xlabel('Time [s]', 'FontSize', font_size);
                                 end
-                                grid on;
                                 xlim([t_common(1) t_common(end)]);
                             end
-                            saveas(gcf, fullfile(output_dir, sprintf('torque_comparison_%s.png', lbl)));
+                            exportgraphics(gcf, fullfile(output_dir, sprintf('torque_comparison_%s.png', lbl)), 'Resolution', 300);
                             close(gcf);
                         else
                             fprintf('  Skipping torque comparison (tau data not available)\n');
                         end
                         
                         %% PLOT 5: End-Effector Error Comparison
-                        figure('Name', 'EE Error Comparison', 'Position', [100 100 1200 600], 'Visible', 'off');
+                        figure('Units', 'centimeters', 'Position', [5 5 12 6], ...
+                               'PaperUnits', 'centimeters', 'PaperPosition', [0 0 12 6], ...
+                               'PaperSize', [12 6], 'Visible', 'off');
                         
                         subplot(1, 2, 1);
-                        plot(t_sim, ee_err_fbl_interp, 'r-', 'LineWidth', 1.5, 'DisplayName', 'FBL');
                         hold on;
-                        plot(t_sim, ee_err_pbc_interp, 'b-', 'LineWidth', 1.5, 'DisplayName', 'PBC');
-                        title('End-Effector Error Over Time');
-                        xlabel('Time [s]'); ylabel('EE Error [mm]'); 
-                        legend('show', 'Location', 'best');
-                        grid on;
+                        plot(t_sim, ee_err_fbl_interp, 'r-', 'LineWidth', line_width);
+                        plot(t_sim, ee_err_pbc_interp, 'b-', 'LineWidth', line_width);
+                        grid on; box on;
+                        set(gca, 'FontSize', font_size, 'FontName', 'Times New Roman', 'LineWidth', 0.8);
+                        title('EE Error Over Time', 'FontSize', font_size);
+                        xlabel('Time [s]', 'FontSize', font_size);
+                        ylabel('EE Error [mm]', 'FontSize', font_size);
+                        lgd = legend({'FBL', 'PBC'}, 'Location', 'best', 'FontSize', font_size-2);
+                        lgd.ItemTokenSize = [10, 10];
                         
                         subplot(1, 2, 2);
                         % Bar chart for better comparison
-                        categories = {'Max Error', 'RMS Error', 'Final Error'};
+                        categories = {'Max', 'RMS', 'Final'};
                         fbl_values = [fbl.performance.ee_max_error_mm, fbl.performance.ee_rms_error_mm, fbl.performance.ee_final_error_mm];
                         pbc_values = [pbc.performance.ee_max_error_mm, pbc.performance.ee_rms_error_mm, pbc.performance.ee_final_error_mm];
                         
                         x = 1:3;
-                        bar(x-0.15, fbl_values, 0.3, 'FaceColor', 'r', 'DisplayName', 'FBL');
+                        bar(x-0.15, fbl_values, 0.3, 'FaceColor', 'r');
                         hold on;
-                        bar(x+0.15, pbc_values, 0.3, 'FaceColor', 'b', 'DisplayName', 'PBC');
+                        bar(x+0.15, pbc_values, 0.3, 'FaceColor', 'b');
                         set(gca, 'XTick', x, 'XTickLabel', categories);
-                        ylabel('Error [mm]');
-                        title('Performance Metrics Comparison');
-                        legend('show', 'Location', 'best');
-                        grid on;
+                        set(gca, 'FontSize', font_size, 'FontName', 'Times New Roman', 'LineWidth', 0.8);
+                        ylabel('Error [mm]', 'FontSize', font_size);
+                        title('Performance Metrics', 'FontSize', font_size);
+                        lgd = legend({'FBL', 'PBC'}, 'Location', 'best', 'FontSize', font_size-2);
+                        lgd.ItemTokenSize = [10, 10];
+                        grid on; box on;
                         
-                        sgtitle(sprintf('End-Effector Error Comparison: FBL vs PBC'));
-                        saveas(gcf, fullfile(output_dir, sprintf('ee_metrics_%s.png', lbl)));
+                        exportgraphics(gcf, fullfile(output_dir, sprintf('ee_metrics_%s.png', lbl)), 'Resolution', 300);
                         close(gcf);
                         
                         generated_plots = generated_plots + 1;
