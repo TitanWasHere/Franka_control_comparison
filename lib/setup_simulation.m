@@ -72,9 +72,12 @@ function [config, controller_gains, uncertain_params, true_params_vec, x0] = set
     if config.traj_label == 'A'
         q0 = [0, -pi/4, 0, -3*pi/4, 0, pi/2, pi/4]'; 
         qf = q0 + [0.3, 0.2, 0.3, 0.2, 0.3, 0.2, 0.3]';
-    else % 'B'
+    else if config.traj_label == 'B'
         q0 = [-pi/2, -pi/4, 0, -3*pi/4, 0, pi/2, pi/4]';
         qf = q0 + [0.5, -0.5, pi/2, -pi/2, 0.0,pi, 0.5]';
+    else
+        q0 = [pi, -pi/2, -pi/2, -pi/2, pi/2, 0, pi/4]';
+        qf = [-pi/2, pi/4, pi, pi/4, -pi/2, pi, -pi/4]';
     end
 
     % safety limits
@@ -97,7 +100,7 @@ function [config, controller_gains, uncertain_params, true_params_vec, x0] = set
     end
 
     %% initial state
-    if config.matched_start, q0_actual = q0; else, q0_actual = q0 + deg2rad([5,-10,0,8,0,0,0]'); end
+    if config.matched_start, q0_actual = q0; else, q0_actual = q0 + deg2rad([45, -20, 30, 2, 10, 50, -40]'); end
     x0 = [q0_actual; zeros(7,1)];
 
     fprintf('Setup complete.\n\n');

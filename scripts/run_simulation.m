@@ -2,13 +2,13 @@ clear; clc; close all;
 
 addpath("../lib/")
 
-config.controller_type = "FBL";
-config.trajectory_type = "quintic";
-config.traj_label      = 'A';
-config.matched_start   = false;
-config.optimized_gains = true;
-config.uncertainty_level = "high";  % Options: "high", "extreme"
-config.T_final         = 8.0;
+config.controller_type = "PBC";
+config.trajectory_type = "bang_bang";
+config.traj_label      = 'C';
+config.matched_start   = true;
+config.optimized_gains = false;
+config.uncertainty_level = "extreme";  % Options: "high", "extreme"
+config.T_final         = 2.0;
 
 [config, controller_gains, uncertain_params, true_params_vec, x0] = setup_simulation(config);
 if config.controller_type == "FBL"
